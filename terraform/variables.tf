@@ -47,3 +47,9 @@ variable "db_subnet_prefix" {
   description = "Address prefix for the database subnet"
   type        = list(string)
 }
+
+variable "admin_public_ip" {
+  description = "Administrator public IP address"
+  type        = string
+}
+
