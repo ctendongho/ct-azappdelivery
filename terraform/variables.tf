@@ -53,3 +53,7 @@ variable "admin_public_ip" {
   type        = string
 }
 
+variable "management_public_ip_name" {
+  description = "Public IP for the management VM"
+  type        = string
+}

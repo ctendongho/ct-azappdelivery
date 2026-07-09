@@ -5,6 +5,15 @@ resource "azurerm_virtual_network" "main" {
   address_space       = var.vnet_address_space
 }
 
+resource "azurerm_public_ip" "management" {
+  name                = var.management_public_ip_name
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+
+  allocation_method = "Static"
+  sku               = "Standard"
+}
+
 resource "azurerm_subnet" "public" {
   name                 = var.public_subnet_name
   resource_group_name  = azurerm_resource_group.main.name
