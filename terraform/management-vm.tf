@@ -3,3 +3,44 @@ resource "azurerm_user_assigned_identity" "main" {
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
 }
+
+resource "azurerm_network_interface" "dc" {
+  name                = "${var.dc_vm_name}-nic"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = azurerm_subnet.public1.id
+    private_ip_address_allocation = "Dynamic"
+  }
+}
+
+resource "azurerm_windows_virtual_machine" "dc" {
+  name                = var.dc_vm_name
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  size                = var.dc_vm_size
+  admin_username      = var.dc_admin_username
+  admin_password      = var.dc_admin_password
+  network_interface_ids = [
+    azurerm_network_interface.dc.id
+  ]
+  zone = "1"
+
+  source_image_reference {
+    publisher = "MicrosoftWindowsServer"
+    offer     = "WindowsServer"
+    sku       = "2022-datacenter-azure-edition"
+    version   = "latest"
+  }
+
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = "Standard_LRS"
+  }
+
+  boot_diagnostics {
+    storage_account_uri = azurerm_storage_account.main.primary_blob_endpoint
+  }
+}

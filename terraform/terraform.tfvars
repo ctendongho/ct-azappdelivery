@@ -40,3 +40,9 @@ vmss_vm_size        = "Standard_D2s_v3"
 vmss_admin_username = "charlo"
 
 vmss_admin_password = "ReplaceWithAStrongPassword123!"
+
+# Domain Controller
+dc_vm_name        = "ct-azappdc01"
+dc_vm_size        = "Standard_D2s_v3"
+dc_admin_username = "azureadmin"
+dc_admin_password = "ReplaceWithAStrongPassword123!"

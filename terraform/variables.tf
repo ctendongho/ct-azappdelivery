@@ -118,3 +118,24 @@ variable "vmss_admin_password" {
   type        = string
   sensitive   = true
 }
+
+variable "dc_vm_name" {
+  description = "Domain Controller VM name"
+  type        = string
+}
+
+variable "dc_vm_size" {
+  description = "Domain Controller VM size"
+  type        = string
+}
+
+variable "dc_admin_username" {
+  description = "Domain Controller admin username"
+  type        = string
+}
+
+variable "dc_admin_password" {
+  description = "Domain Controller admin password"
+  type        = string
+  sensitive   = true
+}
