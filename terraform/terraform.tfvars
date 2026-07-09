@@ -46,3 +46,10 @@ dc_vm_name        = "ct-azappdc01"
 dc_vm_size        = "Standard_D2s_v3"
 dc_admin_username = "azureadmin"
 dc_admin_password = "ReplaceWithAStrongPassword123!"
+
+# SQL Server VMs
+sql_vm1_name       = "ct-azappsql01"
+sql_vm2_name       = "ct-azappsql02"
+sql_vm_size        = "Standard_D2s_v3"
+sql_admin_username = "azureadmin"
+sql_admin_password = "ReplaceWithAStrongPassword123!"

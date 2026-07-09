@@ -139,3 +139,29 @@ variable "dc_admin_password" {
   type        = string
   sensitive   = true
 }
+
+variable "sql_vm1_name" {
+  description = "SQL Server VM in Zone 1"
+  type        = string
+}
+
+variable "sql_vm2_name" {
+  description = "SQL Server VM in Zone 2"
+  type        = string
+}
+
+variable "sql_vm_size" {
+  description = "SQL Server VM size"
+  type        = string
+}
+
+variable "sql_admin_username" {
+  description = "SQL Server administrator username"
+  type        = string
+}
+
+variable "sql_admin_password" {
+  description = "SQL Server administrator password"
+  type        = string
+  sensitive   = true
+}
