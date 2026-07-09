@@ -32,3 +32,11 @@ admin_public_ip = "20.118.28.9/32"
 management_public_ip_name = "ct-azappmain-pip"
 
 managed_identity_name = "ct-azapp-mi"
+
+# Virtual Machine Scale Set
+vmss_name           = "ct-azappvmss"
+vmss_instance_count = 2
+vmss_vm_size        = "Standard_D2s_v3"
+vmss_admin_username = "charlo"
+
+vmss_admin_password = "ReplaceWithAStrongPassword123!"

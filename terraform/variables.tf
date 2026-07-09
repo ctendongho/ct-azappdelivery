@@ -92,3 +92,29 @@ variable "managed_identity_name" {
   description = "User Assigned Managed Identity"
   type        = string
 }
+
+variable "vmss_name" {
+  description = "Application VM Scale Set name"
+  type        = string
+}
+
+variable "vmss_instance_count" {
+  description = "Initial number of VMSS instances"
+  type        = number
+}
+
+variable "vmss_vm_size" {
+  description = "Virtual machine size for the VM Scale Set"
+  type        = string
+}
+
+variable "vmss_admin_username" {
+  description = "Administrator username for the VM Scale Set"
+  type        = string
+}
+
+variable "vmss_admin_password" {
+  description = "Administrator password for the Windows VM Scale Set"
+  type        = string
+  sensitive   = true
+}
