@@ -18,33 +18,63 @@ variable "vnet_address_space" {
   type        = list(string)
 }
 
-variable "public_subnet_name" {
-  description = "Public subnet name"
+variable "public_subnet1_name" {
+  description = "Public subnet in Zone 1"
   type        = string
 }
 
-variable "public_subnet_prefix" {
-  description = "Address prefix for the public subnet"
+variable "public_subnet1_prefix" {
+  description = "Address prefix for Public Subnet 1"
   type        = list(string)
 }
 
-variable "app_subnet_name" {
-  description = "Application subnet name"
+variable "public_subnet2_name" {
+  description = "Public subnet in Zone 2"
   type        = string
 }
 
-variable "app_subnet_prefix" {
-  description = "Address prefix for the application subnet"
+variable "public_subnet2_prefix" {
+  description = "Address prefix for Public Subnet 2"
   type        = list(string)
 }
 
-variable "db_subnet_name" {
-  description = "Database subnet name"
+variable "app_subnet1_name" {
+  description = "Application subnet in Zone 1"
   type        = string
 }
 
-variable "db_subnet_prefix" {
-  description = "Address prefix for the database subnet"
+variable "app_subnet1_prefix" {
+  description = "Address prefix for Application Subnet 1"
+  type        = list(string)
+}
+
+variable "app_subnet2_name" {
+  description = "Application subnet in Zone 2"
+  type        = string
+}
+
+variable "app_subnet2_prefix" {
+  description = "Address prefix for Application Subnet 2"
+  type        = list(string)
+}
+
+variable "db_subnet1_name" {
+  description = "Database subnet in Zone 1"
+  type        = string
+}
+
+variable "db_subnet1_prefix" {
+  description = "Address prefix for Database Subnet 1"
+  type        = list(string)
+}
+
+variable "db_subnet2_name" {
+  description = "Database subnet in Zone 2"
+  type        = string
+}
+
+variable "db_subnet2_prefix" {
+  description = "Address prefix for Database Subnet 2"
   type        = list(string)
 }
 

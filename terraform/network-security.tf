@@ -16,18 +16,33 @@ resource "azurerm_network_security_group" "db" {
   resource_group_name = azurerm_resource_group.main.name
 }
 
-resource "azurerm_subnet_network_security_group_association" "public" {
-  subnet_id                 = azurerm_subnet.public.id
+resource "azurerm_subnet_network_security_group_association" "public1" {
+  subnet_id                 = azurerm_subnet.public1.id
   network_security_group_id = azurerm_network_security_group.public.id
 }
 
-resource "azurerm_subnet_network_security_group_association" "app" {
-  subnet_id                 = azurerm_subnet.app.id
+resource "azurerm_subnet_network_security_group_association" "public2" {
+  subnet_id                 = azurerm_subnet.public2.id
+  network_security_group_id = azurerm_network_security_group.public.id
+}
+
+resource "azurerm_subnet_network_security_group_association" "app1" {
+  subnet_id                 = azurerm_subnet.app1.id
   network_security_group_id = azurerm_network_security_group.app.id
 }
 
-resource "azurerm_subnet_network_security_group_association" "db" {
-  subnet_id                 = azurerm_subnet.db.id
+resource "azurerm_subnet_network_security_group_association" "app2" {
+  subnet_id                 = azurerm_subnet.app2.id
+  network_security_group_id = azurerm_network_security_group.app.id
+}
+
+resource "azurerm_subnet_network_security_group_association" "db1" {
+  subnet_id                 = azurerm_subnet.db1.id
+  network_security_group_id = azurerm_network_security_group.db.id
+}
+
+resource "azurerm_subnet_network_security_group_association" "db2" {
+  subnet_id                 = azurerm_subnet.db2.id
   network_security_group_id = azurerm_network_security_group.db.id
 }
 

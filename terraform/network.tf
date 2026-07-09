@@ -14,23 +14,44 @@ resource "azurerm_public_ip" "management" {
   sku               = "Standard"
 }
 
-resource "azurerm_subnet" "public" {
-  name                 = var.public_subnet_name
+resource "azurerm_subnet" "public1" {
+  name                 = var.public_subnet1_name
   resource_group_name  = azurerm_resource_group.main.name
   virtual_network_name = azurerm_virtual_network.main.name
-  address_prefixes     = var.public_subnet_prefix
+  address_prefixes     = var.public_subnet1_prefix
 }
 
-resource "azurerm_subnet" "app" {
-  name                 = var.app_subnet_name
+resource "azurerm_subnet" "public2" {
+  name                 = var.public_subnet2_name
   resource_group_name  = azurerm_resource_group.main.name
   virtual_network_name = azurerm_virtual_network.main.name
-  address_prefixes     = var.app_subnet_prefix
+  address_prefixes     = var.public_subnet2_prefix
 }
 
-resource "azurerm_subnet" "db" {
-  name                 = var.db_subnet_name
+resource "azurerm_subnet" "app1" {
+  name                 = var.app_subnet1_name
   resource_group_name  = azurerm_resource_group.main.name
   virtual_network_name = azurerm_virtual_network.main.name
-  address_prefixes     = var.db_subnet_prefix
+  address_prefixes     = var.app_subnet1_prefix
+}
+
+resource "azurerm_subnet" "app2" {
+  name                 = var.app_subnet2_name
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = var.app_subnet2_prefix
+}
+
+resource "azurerm_subnet" "db1" {
+  name                 = var.db_subnet1_name
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = var.db_subnet1_prefix
+}
+
+resource "azurerm_subnet" "db2" {
+  name                 = var.db_subnet2_name
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = var.db_subnet2_prefix
 }
