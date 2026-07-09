@@ -57,3 +57,8 @@ variable "management_public_ip_name" {
   description = "Public IP for the management VM"
   type        = string
 }
+
+variable "managed_identity_name" {
+  description = "User Assigned Managed Identity"
+  type        = string
+}

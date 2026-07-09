@@ -21,3 +21,5 @@ db_subnet_prefix = ["10.10.3.0/24"]
 admin_public_ip = "20.118.28.9/32"
 
 management_public_ip_name = "ct-azappmain-pip"
+
+managed_identity_name = "ct-azapp-mi"
