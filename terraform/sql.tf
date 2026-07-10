@@ -6,7 +6,8 @@ resource "azurerm_network_interface" "sql1" {
   ip_configuration {
     name                          = "internal"
     subnet_id                     = azurerm_subnet.db1.id
-    private_ip_address_allocation = "Dynamic"
+    private_ip_address_allocation = "Static"
+    private_ip_address            = "10.10.21.10"
   }
 }
 
@@ -18,7 +19,8 @@ resource "azurerm_network_interface" "sql2" {
   ip_configuration {
     name                          = "internal"
     subnet_id                     = azurerm_subnet.db2.id
-    private_ip_address_allocation = "Dynamic"
+    private_ip_address_allocation = "Static"
+    private_ip_address            = "10.10.22.10"
   }
 }
 

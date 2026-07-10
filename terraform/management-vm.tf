@@ -11,8 +11,9 @@ resource "azurerm_network_interface" "dc" {
 
   ip_configuration {
     name                          = "internal"
-    subnet_id                     = azurerm_subnet.public1.id
-    private_ip_address_allocation = "Dynamic"
+    subnet_id                     = azurerm_subnet.app1.id
+    private_ip_address_allocation = "Static"
+    private_ip_address            = "10.10.11.10"
   }
 }
 
