@@ -55,3 +55,27 @@ resource "azurerm_subnet" "db2" {
   virtual_network_name = azurerm_virtual_network.main.name
   address_prefixes     = var.db_subnet2_prefix
 }
+
+data "azurerm_virtual_network" "management" {
+  name                = "ct-main-vnet"
+  resource_group_name = "CT-AZAPP-RG"
+}
+
+resource "azurerm_virtual_network_peering" "management_to_app" {
+  name                      = "ct-main-to-azapp-peer"
+  resource_group_name       = data.azurerm_virtual_network.management.resource_group_name
+  virtual_network_name      = data.azurerm_virtual_network.management.name
+  remote_virtual_network_id = azurerm_virtual_network.main.id
+
+  allow_virtual_network_access = true
+}
+
+resource "azurerm_virtual_network_peering" "app_to_management" {
+  name                      = "ct-azapp-to-main-peer"
+  resource_group_name       = azurerm_resource_group.main.name
+  virtual_network_name      = azurerm_virtual_network.main.name
+  remote_virtual_network_id = data.azurerm_virtual_network.management.id
+
+  allow_virtual_network_access = true
+}
+

@@ -45,3 +45,15 @@ resource "azurerm_windows_virtual_machine" "dc" {
     storage_account_uri = azurerm_storage_account.main.primary_blob_endpoint
   }
 }
+
+resource "azurerm_virtual_machine_extension" "dc_winrm" {
+  name                 = "enable-winrm"
+  virtual_machine_id   = azurerm_windows_virtual_machine.dc.id
+  publisher            = "Microsoft.Compute"
+  type                 = "CustomScriptExtension"
+  type_handler_version = "1.10"
+
+  settings = jsonencode({
+    commandToExecute = "powershell -ExecutionPolicy Unrestricted -Command \"Enable-PSRemoting -Force; Set-NetFirewallRule -DisplayGroup 'Windows Remote Management' -Enabled True; winrm quickconfig -quiet\""
+  })
+}
