@@ -1,2 +1,5 @@
 ---
+ad_domain_name: ad.ctinventorytracker.com
+ad_netbios_name: CTINV
+ad_safe_mode_password: ReplaceWithAStrongPassword123!--
 # defaults file for ansible/roles/domain-controller
