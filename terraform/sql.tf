@@ -2,6 +2,7 @@ resource "azurerm_network_interface" "sql1" {
   name                = "${var.sql_vm1_name}-nic"
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
+  dns_servers         = ["10.10.11.10"]
 
   ip_configuration {
     name                          = "internal"
@@ -15,6 +16,7 @@ resource "azurerm_network_interface" "sql2" {
   name                = "${var.sql_vm2_name}-nic"
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
+  dns_servers         = ["10.10.11.10"]
 
   ip_configuration {
     name                          = "internal"
