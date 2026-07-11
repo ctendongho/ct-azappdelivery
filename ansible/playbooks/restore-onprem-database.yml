@@ -1,0 +1,42 @@
+---
+- name: Restore migrated inventory database on SQL01
+  hosts: ct-azappsql01
+  gather_facts: false
+
+  tasks:
+    - name: Restore CTInvTracker database
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = "Stop"
+
+          $dataPath = Invoke-Sqlcmd -ServerInstance localhost -Query "
+          SELECT SERVERPROPERTY('InstanceDefaultDataPath') AS DataPath;
+          "
+
+          $logPath = Invoke-Sqlcmd -ServerInstance localhost -Query "
+          SELECT SERVERPROPERTY('InstanceDefaultLogPath') AS LogPath;
+          "
+
+          Invoke-Sqlcmd `
+            -ServerInstance localhost `
+            -QueryTimeout 0 `
+            -Query "
+            IF DB_ID('CTInvTracker') IS NOT NULL
+            BEGIN
+                ALTER DATABASE [CTInvTracker]
+                SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+
+                DROP DATABASE [CTInvTracker];
+            END;
+
+            RESTORE DATABASE [CTInvTracker]
+            FROM DISK = N'C:\SQLBackups\CTInvTracker.bak'
+            WITH
+                MOVE N'AdventureWorks2019'
+                  TO N'$($dataPath.DataPath)CTInvTracker.mdf',
+                MOVE N'AdventureWorks2019_log'
+                  TO N'$($logPath.LogPath)CTInvTracker_log.ldf',
+                RECOVERY,
+                REPLACE,
+                STATS = 10;
+            "
