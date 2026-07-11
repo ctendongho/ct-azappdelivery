@@ -1,0 +1,40 @@
+---
+- name: Configure HADR endpoint permissions
+  hosts: sql_servers
+  gather_facts: false
+
+  tasks:
+    - name: Grant SQL node computer accounts access to HADR endpoint
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = "Stop"
+
+          $query = @"
+          IF NOT EXISTS (
+              SELECT 1
+              FROM sys.server_principals
+              WHERE name = N'CTINV\ct-azappsql01$'
+          )
+          BEGIN
+              CREATE LOGIN [CTINV\ct-azappsql01$] FROM WINDOWS;
+          END;
+
+          IF NOT EXISTS (
+              SELECT 1
+              FROM sys.server_principals
+              WHERE name = N'CTINV\ct-azappsql02$'
+          )
+          BEGIN
+              CREATE LOGIN [CTINV\ct-azappsql02$] FROM WINDOWS;
+          END;
+
+          GRANT CONNECT ON ENDPOINT::[Hadr_endpoint]
+          TO [CTINV\ct-azappsql01$];
+
+          GRANT CONNECT ON ENDPOINT::[Hadr_endpoint]
+          TO [CTINV\ct-azappsql02$];
+          "@
+
+          Invoke-Sqlcmd -ServerInstance localhost -Query $query
+
+          $Ansible.Changed = $false

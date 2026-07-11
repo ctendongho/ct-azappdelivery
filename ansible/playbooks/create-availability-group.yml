@@ -1,0 +1,76 @@
+---
+- name: Create SQL Server Availability Group
+  hosts: ct-azappsql01
+  gather_facts: false
+
+  tasks:
+    - name: Create Availability Group on primary
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = "Stop"
+
+          $existing = Invoke-Sqlcmd -ServerInstance localhost -Query "
+          SELECT name
+          FROM sys.availability_groups
+          WHERE name = 'CTInventoryAG';
+          "
+
+          if (-not $existing) {
+            Invoke-Sqlcmd -ServerInstance localhost -Query "
+            CREATE AVAILABILITY GROUP [CTInventoryAG]
+            WITH (
+                AUTOMATED_BACKUP_PREFERENCE = PRIMARY,
+                DB_FAILOVER = ON
+            )
+            FOR DATABASE [CTInventoryTracker]
+            REPLICA ON
+                N'ct-azappsql01' WITH (
+                    ENDPOINT_URL = N'TCP://ct-azappsql01.ad.ctinventorytracker.com:5022',
+                    AVAILABILITY_MODE = SYNCHRONOUS_COMMIT,
+                    FAILOVER_MODE = AUTOMATIC,
+                    SEEDING_MODE = MANUAL,
+                    SECONDARY_ROLE (ALLOW_CONNECTIONS = READ_ONLY)
+                ),
+                N'ct-azappsql02' WITH (
+                    ENDPOINT_URL = N'TCP://ct-azappsql02.ad.ctinventorytracker.com:5022',
+                    AVAILABILITY_MODE = SYNCHRONOUS_COMMIT,
+                    FAILOVER_MODE = AUTOMATIC,
+                    SEEDING_MODE = MANUAL,
+                    SECONDARY_ROLE (ALLOW_CONNECTIONS = READ_ONLY)
+                );
+            "
+
+            $Ansible.Changed = $true
+          }
+          else {
+            $Ansible.Changed = $false
+          }
+
+- name: Join secondary replica and database
+  hosts: ct-azappsql02
+  gather_facts: false
+
+  tasks:
+    - name: Join SQL02 to Availability Group
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = "Stop"
+
+          $replica = Invoke-Sqlcmd -ServerInstance localhost -Query "
+          SELECT ag.name
+          FROM sys.availability_groups ag
+          WHERE ag.name = 'CTInventoryAG';
+          "
+
+          if (-not $replica) {
+            Invoke-Sqlcmd -ServerInstance localhost -Query "
+            ALTER AVAILABILITY GROUP [CTInventoryAG] JOIN;
+            ALTER DATABASE [CTInventoryTracker]
+            SET HADR AVAILABILITY GROUP = [CTInventoryAG];
+            "
+
+            $Ansible.Changed = $true
+          }
+          else {
+            $Ansible.Changed = $false
+          }
