@@ -1,0 +1,7 @@
+---
+- name: Enable SQL Server Always On
+  hosts: sql_servers
+  gather_facts: false
+
+  roles:
+    - alwayson
