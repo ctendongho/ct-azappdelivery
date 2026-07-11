@@ -1,0 +1,7 @@
+---
+- name: Install Windows Failover Clustering features
+  hosts: sql_servers
+  gather_facts: false
+
+  roles:
+    - cluster

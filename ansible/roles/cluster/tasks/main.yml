@@ -1,2 +1,17 @@
 ---
+- name: Install Failover Clustering features
+  ansible.windows.win_feature:
+    name:
+      - Failover-Clustering
+      - RSAT-Clustering
+      - RSAT-Clustering-PowerShell
+      - RSAT-Clustering-CmdInterface
+    state: present
+    include_management_tools: true
+  register: cluster_features
+
+- name: Reboot SQL servers if required
+  ansible.windows.win_reboot:
+    reboot_timeout: 900
+  when: cluster_features.reboot_required | default(false)
 # tasks file for ansible/roles/cluster
