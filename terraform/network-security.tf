@@ -129,3 +129,17 @@ resource "azurerm_network_security_rule" "allow_winrm_https_app" {
   resource_group_name         = azurerm_resource_group.main.name
   network_security_group_name = azurerm_network_security_group.app.name
 }
+
+resource "azurerm_network_security_rule" "allow_sql_hadr" {
+  name                        = "Allow-SQL-HADR"
+  priority                    = 160
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "5022"
+  source_address_prefixes     = ["10.10.21.0/24", "10.10.22.0/24"]
+  destination_address_prefix  = "*"
+  resource_group_name         = azurerm_resource_group.main.name
+  network_security_group_name = azurerm_network_security_group.db.name
+}
