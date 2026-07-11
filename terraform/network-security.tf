@@ -157,3 +157,17 @@ resource "azurerm_network_security_rule" "allow_sql_dnn_listener" {
   resource_group_name         = azurerm_resource_group.main.name
   network_security_group_name = azurerm_network_security_group.db.name
 }
+
+resource "azurerm_network_security_rule" "allow_sql_from_vpn" {
+  name                        = "Allow-SQL-From-VPN"
+  priority                    = 180
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "1433"
+  source_address_prefix       = "172.20.20.0/24"
+  destination_address_prefix  = "*"
+  resource_group_name         = azurerm_resource_group.main.name
+  network_security_group_name = azurerm_network_security_group.db.name
+}

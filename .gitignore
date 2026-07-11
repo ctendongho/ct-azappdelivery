@@ -27,3 +27,4 @@ override.tf.json
 Thumbs.db
 .vscode/
 .idea/
+terraform/terraform.tfvars

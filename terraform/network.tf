@@ -79,3 +79,9 @@ resource "azurerm_virtual_network_peering" "app_to_management" {
   allow_virtual_network_access = true
 }
 
+resource "azurerm_subnet" "gateway" {
+  name                 = "GatewaySubnet"
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = ["10.10.250.0/27"]
+}

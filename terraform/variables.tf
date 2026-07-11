@@ -165,3 +165,9 @@ variable "sql_admin_password" {
   type        = string
   sensitive   = true
 }
+
+variable "root_certificate" {
+  description = "VPN Root Certificate"
+  type        = string
+  sensitive   = true
+}

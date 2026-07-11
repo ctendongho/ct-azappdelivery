@@ -1,0 +1,77 @@
+---
+- name: Create SQL admin login on primary
+  hosts: ct-azappsql01
+  gather_facts: false
+
+  vars:
+    sql_admin_login: "ctsqladmin"
+    sql_admin_password: "ReplaceWithAStrongPassword123!"
+
+  tasks:
+    - name: Create login and capture SID
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = "Stop"
+
+          Invoke-Sqlcmd -ServerInstance localhost -Query "
+          IF NOT EXISTS (
+              SELECT 1
+              FROM sys.server_principals
+              WHERE name = N'{{ sql_admin_login }}'
+          )
+          BEGIN
+              CREATE LOGIN [{{ sql_admin_login }}]
+              WITH PASSWORD = N'{{ sql_admin_password }}',
+                   CHECK_POLICY = ON,
+                   CHECK_EXPIRATION = OFF;
+
+              ALTER SERVER ROLE [sysadmin]
+              ADD MEMBER [{{ sql_admin_login }}];
+          END;
+          "
+
+          $sid = Invoke-Sqlcmd -ServerInstance localhost -Query "
+          SELECT CONVERT(varchar(170), sid, 1) AS LoginSid
+          FROM sys.server_principals
+          WHERE name = N'{{ sql_admin_login }}';
+          "
+
+          $Ansible.Result = @{
+              login_sid = $sid.LoginSid
+          }
+      register: primary_login
+      no_log: true
+
+- name: Create matching SQL admin login on secondary
+  hosts: ct-azappsql02
+  gather_facts: false
+
+  vars:
+    sql_admin_login: "ctsqladmin"
+    sql_admin_password: "ReplaceWithAStrongPassword123!"
+    login_sid: "{{ hostvars['ct-azappsql01']['primary_login'].result.login_sid }}"
+
+  tasks:
+    - name: Create login with matching SID
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = "Stop"
+
+          Invoke-Sqlcmd -ServerInstance localhost -Query "
+          IF NOT EXISTS (
+              SELECT 1
+              FROM sys.server_principals
+              WHERE name = N'{{ sql_admin_login }}'
+          )
+          BEGIN
+              CREATE LOGIN [{{ sql_admin_login }}]
+              WITH PASSWORD = N'{{ sql_admin_password }}',
+                   SID = {{ login_sid }},
+                   CHECK_POLICY = ON,
+                   CHECK_EXPIRATION = OFF;
+
+              ALTER SERVER ROLE [sysadmin]
+              ADD MEMBER [{{ sql_admin_login }}];
+          END;
+          "
+      no_log: true
