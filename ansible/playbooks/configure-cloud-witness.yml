@@ -1,0 +1,49 @@
+---
+- name: Configure WSFC Cloud Witness
+  hosts: ct-azappsql01
+  gather_facts: false
+
+  vars:
+    ansible_become_password: "ReplaceWithAStrongPassword123!"
+    cloud_witness_account: "ctazappdiagu32gio"
+    cloud_witness_key: "{{ lookup('env', 'STORAGE_KEY') }}"
+
+  tasks:
+    - name: Confirm storage key is available
+      ansible.builtin.assert:
+        that:
+          - cloud_witness_key | length > 0
+        fail_msg: "STORAGE_KEY is empty. Export it before running this playbook."
+      no_log: true
+
+    - name: Configure Cloud Witness
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = "Stop"
+
+          $quorum = Get-ClusterQuorum
+
+          if ($quorum.QuorumResource -and
+              $quorum.QuorumResource.Name -eq "Cloud Witness") {
+              $Ansible.Changed = $false
+              Write-Output "Cloud Witness is already configured."
+          }
+          else {
+              Set-ClusterQuorum `
+                -CloudWitness `
+                -AccountName "{{ cloud_witness_account }}" `
+                -AccessKey "{{ cloud_witness_key }}"
+
+              $updatedQuorum = Get-ClusterQuorum
+
+              if (-not $updatedQuorum.QuorumResource) {
+                  throw "Cloud Witness configuration did not create a quorum resource."
+              }
+
+              $Ansible.Changed = $true
+              Write-Output "Cloud Witness configured successfully."
+          }
+      become: true
+      become_method: runas
+      become_user: "CTINV\\azureadmin"
+      no_log: true
