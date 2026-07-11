@@ -171,3 +171,31 @@ resource "azurerm_network_security_rule" "allow_sql_from_vpn" {
   resource_group_name         = azurerm_resource_group.main.name
   network_security_group_name = azurerm_network_security_group.db.name
 }
+
+resource "azurerm_network_security_rule" "allow_winrm_to_app_servers" {
+  name                        = "Allow-WinRM-To-App-Servers"
+  priority                    = 190
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "5985"
+  source_address_prefix       = "10.0.0.4/32"
+  destination_address_prefix  = "10.10.11.0/24"
+  resource_group_name         = azurerm_resource_group.main.name
+  network_security_group_name = azurerm_network_security_group.app.name
+}
+
+resource "azurerm_network_security_rule" "allow_http_to_app_servers" {
+  name                        = "Allow-HTTP-To-App-Servers"
+  priority                    = 200
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "80"
+  source_address_prefix       = "10.0.0.4/32"
+  destination_address_prefix  = "10.10.11.0/24"
+  resource_group_name         = azurerm_resource_group.main.name
+  network_security_group_name = azurerm_network_security_group.app.name
+}
