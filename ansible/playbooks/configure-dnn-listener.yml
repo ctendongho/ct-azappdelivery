@@ -1,0 +1,76 @@
+---
+- name: Configure SQL Availability Group DNN listener
+  hosts: ct-azappsql01
+  gather_facts: false
+
+  vars:
+    ansible_become_password: "ReplaceWithAStrongPassword123!"
+    ag_name: "CTInventoryAG"
+    dnn_listener_name: "CTInventoryListener"
+    dnn_listener_port: "14330"
+
+  tasks:
+    - name: Create DNN listener resource
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = "Stop"
+
+          $AgName = "{{ ag_name }}"
+          $DnsName = "{{ dnn_listener_name }}"
+          $Port = "{{ dnn_listener_port }}"
+
+          $existing = Get-ClusterResource -Name $Port -ErrorAction SilentlyContinue
+
+          if (-not $existing) {
+              Add-ClusterResource `
+                -Name $Port `
+                -ResourceType "Distributed Network Name" `
+                -Group $AgName
+
+              Get-ClusterResource -Name $Port |
+                Set-ClusterParameter -Name DnsName -Value $DnsName
+
+              Start-ClusterResource -Name $Port
+
+              $dependency = Get-ClusterResourceDependency -Resource $AgName
+
+              if ($dependency.DependencyExpression -match '\s*\((.*)\)\s*') {
+                  $dependencyExpression = "$($Matches.1) or [$Port]"
+              }
+              else {
+                  $dependencyExpression = "[$Port]"
+              }
+
+              Set-ClusterResourceDependency `
+                -Resource $AgName `
+                -Dependency $dependencyExpression
+
+              Stop-ClusterResource -Name $AgName
+              Start-ClusterResource -Name $AgName
+
+              $Ansible.Changed = $true
+          }
+          else {
+              $Ansible.Changed = $false
+          }
+      become: true
+      become_method: runas
+      become_user: "CTINV\\azureadmin"
+
+- name: Configure DNN listener firewall
+  hosts: sql_servers
+  gather_facts: false
+
+  tasks:
+    - name: Allow inbound DNN listener traffic
+      community.windows.win_firewall_rule:
+        name: SQL Availability Group DNN Listener
+        localport: 14330
+        action: allow
+        direction: in
+        protocol: tcp
+        profiles:
+          - domain
+          - private
+        state: present
+        enabled: true
