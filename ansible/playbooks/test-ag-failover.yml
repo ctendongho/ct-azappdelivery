@@ -1,0 +1,30 @@
+---
+- name: Fail over CTInventoryAG to SQL02
+  hosts: ct-azappsql02
+  gather_facts: false
+
+  tasks:
+    - name: Perform planned failover
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = "Stop"
+
+          $role = Invoke-Sqlcmd -ServerInstance localhost -Query "
+          SELECT role_desc
+          FROM sys.dm_hadr_availability_replica_states
+          WHERE is_local = 1;
+          "
+
+          if ($role.role_desc -ne "PRIMARY") {
+            Invoke-Sqlcmd `
+              -ServerInstance localhost `
+              -QueryTimeout 0 `
+              -Query "
+              ALTER AVAILABILITY GROUP [CTInventoryAG] FAILOVER;
+              "
+
+            $Ansible.Changed = $true
+          }
+          else {
+            $Ansible.Changed = $false
+          }
