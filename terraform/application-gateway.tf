@@ -67,6 +67,16 @@ resource "azurerm_application_gateway" "main" {
     port = 80
   }
 
+  frontend_port {
+    name = "ct-appgateway-https-port"
+    port = 443
+  }
+
+  ssl_certificate {
+    name                = "ctinventorytracker-tls"
+    key_vault_secret_id = data.azurerm_key_vault_certificate.inventory_tls.versionless_secret_id
+  }
+
   backend_address_pool {
     name = "ct-appgateway-backend-pool"
 
@@ -105,14 +115,53 @@ resource "azurerm_application_gateway" "main" {
     frontend_ip_configuration_name = "ct-appgateway-frontend-ip"
     frontend_port_name             = "ct-appgateway-http-port"
     protocol                       = "Http"
+
+    host_names = [
+      "ctinventorytracker.com",
+      "www.ctinventorytracker.com"
+    ]
+  }
+
+  http_listener {
+    name                           = "ct-appgateway-https-listener"
+    frontend_ip_configuration_name = "ct-appgateway-frontend-ip"
+    frontend_port_name             = "ct-appgateway-https-port"
+    protocol                       = "Https"
+    ssl_certificate_name           = "ctinventorytracker-tls"
+    require_sni                    = true
+
+    host_names = [
+      "ctinventorytracker.com",
+      "www.ctinventorytracker.com"
+    ]
+  }
+
+  redirect_configuration {
+    name                 = "ct-http-to-https-redirect"
+    redirect_type        = "Permanent"
+    target_listener_name = "ct-appgateway-https-listener"
+    include_path         = true
+    include_query_string = true
   }
 
   request_routing_rule {
-    name                       = "ct-appgateway-http-rule"
+    name                        = "ct-appgateway-http-redirect-rule"
+    rule_type                   = "Basic"
+    http_listener_name          = "ct-appgateway-http-listener"
+    redirect_configuration_name = "ct-http-to-https-redirect"
+    priority                    = 100
+  }
+
+  request_routing_rule {
+    name                       = "ct-appgateway-https-rule"
     rule_type                  = "Basic"
-    http_listener_name         = "ct-appgateway-http-listener"
+    http_listener_name         = "ct-appgateway-https-listener"
     backend_address_pool_name  = "ct-appgateway-backend-pool"
     backend_http_settings_name = "ct-appgateway-http-settings"
-    priority                   = 100
+    priority                   = 110
   }
+
+  depends_on = [
+    azurerm_role_assignment.appgw_key_vault_secrets_user
+  ]
 }

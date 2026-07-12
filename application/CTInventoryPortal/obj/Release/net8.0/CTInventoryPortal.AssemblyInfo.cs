@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("CTInventoryPortal")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7ff4441c8bb945eaeb98044c231119ada2083b7b")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e6163fe0d2ee1a6d2ce995bfe3472164aa545d34")]
 [assembly: System.Reflection.AssemblyProductAttribute("CTInventoryPortal")]
 [assembly: System.Reflection.AssemblyTitleAttribute("CTInventoryPortal")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

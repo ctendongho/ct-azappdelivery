@@ -7,13 +7,15 @@
     app_directory: "C:\\inetpub\\CTInventoryPortal"
     app_pool_name: "CTInventoryPortal"
     site_name: "CTInventoryPortal"
+
     deployment_zip: "../../application/CTInventoryPortal/CTInventoryPortal.zip"
     remote_zip: "C:\\Windows\\Temp\\CTInventoryPortal.zip"
-    hosting_bundle_url: "https://builds.dotnet.microsoft.com/dotnet/aspnetcore/Runtime/8.0.28/dotnet-hosting-8.0.28-win.exe"
-    hosting_bundle_path: "C:\\Windows\\Temp\\dotnet-hosting-8.0.28-win.exe"
+
+    hosting_bundle_url: "https://aka.ms/dotnet/8.0/dotnet-hosting-win.exe"
+    hosting_bundle_path: "C:\\Windows\\Temp\\dotnet-hosting-8.exe"
 
   tasks:
-    - name: Install IIS features
+    - name: Install required IIS features
       ansible.windows.win_feature:
         name:
           - Web-Server
@@ -22,40 +24,58 @@
         state: present
         include_management_tools: true
 
-    - name: Check whether ASP.NET Core Hosting Bundle is installed
+    - name: Check for .NET 8 runtime and ASP.NET Core IIS module
       ansible.windows.win_powershell:
         script: |
-          $installed = Get-ChildItem `
-            'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
-            'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall' `
-            -ErrorAction SilentlyContinue |
-            Get-ItemProperty |
-            Where-Object {
-              $_.DisplayName -like '*Microsoft ASP.NET Core*Hosting Bundle*'
-            }
+          $modulePath = 'C:\Program Files\IIS\Asp.Net Core Module\V2\aspnetcorev2.dll'
+          $dotnetPath = 'C:\Program Files\dotnet\dotnet.exe'
+
+          $runtimeInstalled = $false
+
+          if (Test-Path $dotnetPath) {
+              $runtimes = & $dotnetPath --list-runtimes
+
+              $runtimeInstalled = [bool](
+                  $runtimes |
+                  Where-Object {
+                      $_ -match '^Microsoft\.AspNetCore\.App 8\.'
+                  }
+              )
+          }
+
+          $moduleInstalled = Test-Path $modulePath
 
           $Ansible.Result = @{
-            installed = [bool]$installed
+              runtime_installed = $runtimeInstalled
+              module_installed  = $moduleInstalled
+              hosting_bundle_installed = (
+                  $runtimeInstalled -and $moduleInstalled
+              )
           }
-      register: hosting_bundle
+      register: hosting_bundle_check
+      changed_when: false
 
     - name: Download .NET 8 Hosting Bundle
       ansible.windows.win_get_url:
         url: "{{ hosting_bundle_url }}"
         dest: "{{ hosting_bundle_path }}"
-      when: not hosting_bundle.result.installed
+        force: true
+      when: not hosting_bundle_check.result.hosting_bundle_installed
 
     - name: Install .NET 8 Hosting Bundle
       ansible.windows.win_package:
         path: "{{ hosting_bundle_path }}"
         arguments: "/install /quiet /norestart"
         state: present
-      when: not hosting_bundle.result.installed
+      when: not hosting_bundle_check.result.hosting_bundle_installed
       register: hosting_bundle_install
 
     - name: Restart IIS after Hosting Bundle installation
-      ansible.windows.win_shell: iisreset
-      when: hosting_bundle_install is changed
+      ansible.windows.win_shell: |
+        iisreset
+      when:
+        - hosting_bundle_install is defined
+        - hosting_bundle_install is changed
 
     - name: Stop existing portal website
       community.windows.win_iis_website:
@@ -63,18 +83,81 @@
         state: stopped
       failed_when: false
 
+    - name: Stop existing portal application pool
+      community.windows.win_iis_webapppool:
+        name: "{{ app_pool_name }}"
+        state: stopped
+      failed_when: false
+
+    - name: Wait for IIS worker processes to release application files
+      ansible.windows.win_powershell:
+        script: |
+          Import-Module WebAdministration
+
+          $appPoolName = '{{ app_pool_name }}'
+
+          try {
+              Stop-WebAppPool -Name $appPoolName -ErrorAction SilentlyContinue
+          }
+          catch {
+          }
+
+          Start-Sleep -Seconds 5
+
+          $workerProcesses = Get-CimInstance Win32_Process |
+              Where-Object {
+                  $_.Name -in @('w3wp.exe', 'dotnet.exe') -and
+                  $_.CommandLine -like '*CTInventoryPortal*'
+              }
+
+          foreach ($process in $workerProcesses) {
+              Stop-Process -Id $process.ProcessId -Force -ErrorAction SilentlyContinue
+          }
+
+          Start-Sleep -Seconds 5
+
+          $Ansible.Changed = $false
+
     - name: Create application directory
       ansible.windows.win_file:
         path: "{{ app_directory }}"
         state: directory
 
     - name: Remove previous application files
-      ansible.windows.win_shell: |
-        if (Test-Path '{{ app_directory }}') {
-          Get-ChildItem -Path '{{ app_directory }}' -Force |
-          Remove-Item -Recurse -Force
-        }
-      changed_when: true
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = 'Stop'
+          $appDirectory = '{{ app_directory }}'
+
+          if (-not (Test-Path $appDirectory)) {
+              New-Item -Path $appDirectory -ItemType Directory -Force | Out-Null
+              $Ansible.Changed = $true
+              return
+          }
+
+          $maximumAttempts = 5
+
+          for ($attempt = 1; $attempt -le $maximumAttempts; $attempt++) {
+              try {
+                  Get-ChildItem -Path $appDirectory -Force |
+                      Remove-Item -Recurse -Force -ErrorAction Stop
+
+                  $Ansible.Changed = $true
+                  return
+              }
+              catch {
+                  if ($attempt -eq $maximumAttempts) {
+                      throw
+                  }
+
+                  Start-Sleep -Seconds 5
+              }
+          }
+
+    - name: Remove old deployment package
+      ansible.windows.win_file:
+        path: "{{ remote_zip }}"
+        state: absent
 
     - name: Copy deployment package
       ansible.windows.win_copy:
@@ -87,30 +170,31 @@
         dest: "{{ app_directory }}"
         delete_archive: false
 
-    - name: Create IIS application pool
+    - name: Configure IIS application pool
       community.windows.win_iis_webapppool:
         name: "{{ app_pool_name }}"
-        state: started
+        state: stopped
         attributes:
           managedRuntimeVersion: ""
           startMode: AlwaysRunning
+          processModel.identityType: ApplicationPoolIdentity
 
     - name: Remove Default Web Site
       community.windows.win_iis_website:
         name: "Default Web Site"
         state: absent
 
-    - name: Create IIS website
+    - name: Configure CT Inventory Portal website
       community.windows.win_iis_website:
         name: "{{ site_name }}"
-        state: started
+        state: stopped
         port: 80
         ip: "*"
         hostname: ""
         application_pool: "{{ app_pool_name }}"
         physical_path: "{{ app_directory }}"
 
-    - name: Grant IIS application pool read access
+    - name: Grant IIS application pool read and execute permissions
       ansible.windows.win_acl:
         path: "{{ app_directory }}"
         user: "IIS AppPool\\{{ app_pool_name }}"
@@ -120,5 +204,33 @@
         inherit: ContainerInherit,ObjectInherit
         propagation: None
 
-    - name: Restart IIS
-      ansible.windows.win_shell: iisreset
+    - name: Start CT Inventory Portal application pool
+      community.windows.win_iis_webapppool:
+        name: "{{ app_pool_name }}"
+        state: started
+
+    - name: Start CT Inventory Portal website
+      community.windows.win_iis_website:
+        name: "{{ site_name }}"
+        state: started
+
+    - name: Restart IIS after deployment
+      ansible.windows.win_shell: |
+        iisreset
+
+    - name: Wait for application health endpoint
+      ansible.windows.win_uri:
+        url: "http://localhost/health"
+        method: GET
+        return_content: true
+        status_code: 200
+      register: health_check
+      retries: 12
+      delay: 5
+      until:
+        - health_check.status_code == 200
+        - "'Healthy' in health_check.content"
+
+    - name: Display application health
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} health check returned: {{ health_check.content }}"

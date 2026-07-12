@@ -35,3 +35,12 @@ resource "azurerm_role_assignment" "terraform_key_vault_admin" {
   role_definition_name = "Key Vault Administrator"
   principal_id         = data.azurerm_client_config.current.object_id
 }
+
+data "azurerm_key_vault_certificate" "inventory_tls" {
+  name         = "ctinventorytracker-tls"
+  key_vault_id = azurerm_key_vault.main.id
+
+  depends_on = [
+    azurerm_role_assignment.terraform_key_vault_admin
+  ]
+}
