@@ -1,0 +1,124 @@
+---
+- name: Deploy CT Inventory Portal to IIS
+  hosts: app_servers
+  gather_facts: false
+
+  vars:
+    app_directory: "C:\\inetpub\\CTInventoryPortal"
+    app_pool_name: "CTInventoryPortal"
+    site_name: "CTInventoryPortal"
+    deployment_zip: "../../application/CTInventoryPortal/CTInventoryPortal.zip"
+    remote_zip: "C:\\Windows\\Temp\\CTInventoryPortal.zip"
+    hosting_bundle_url: "https://builds.dotnet.microsoft.com/dotnet/aspnetcore/Runtime/8.0.28/dotnet-hosting-8.0.28-win.exe"
+    hosting_bundle_path: "C:\\Windows\\Temp\\dotnet-hosting-8.0.28-win.exe"
+
+  tasks:
+    - name: Install IIS features
+      ansible.windows.win_feature:
+        name:
+          - Web-Server
+          - Web-Mgmt-Tools
+          - Web-Scripting-Tools
+        state: present
+        include_management_tools: true
+
+    - name: Check whether ASP.NET Core Hosting Bundle is installed
+      ansible.windows.win_powershell:
+        script: |
+          $installed = Get-ChildItem `
+            'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+            'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall' `
+            -ErrorAction SilentlyContinue |
+            Get-ItemProperty |
+            Where-Object {
+              $_.DisplayName -like '*Microsoft ASP.NET Core*Hosting Bundle*'
+            }
+
+          $Ansible.Result = @{
+            installed = [bool]$installed
+          }
+      register: hosting_bundle
+
+    - name: Download .NET 8 Hosting Bundle
+      ansible.windows.win_get_url:
+        url: "{{ hosting_bundle_url }}"
+        dest: "{{ hosting_bundle_path }}"
+      when: not hosting_bundle.result.installed
+
+    - name: Install .NET 8 Hosting Bundle
+      ansible.windows.win_package:
+        path: "{{ hosting_bundle_path }}"
+        arguments: "/install /quiet /norestart"
+        state: present
+      when: not hosting_bundle.result.installed
+      register: hosting_bundle_install
+
+    - name: Restart IIS after Hosting Bundle installation
+      ansible.windows.win_shell: iisreset
+      when: hosting_bundle_install is changed
+
+    - name: Stop existing portal website
+      community.windows.win_iis_website:
+        name: "{{ site_name }}"
+        state: stopped
+      failed_when: false
+
+    - name: Create application directory
+      ansible.windows.win_file:
+        path: "{{ app_directory }}"
+        state: directory
+
+    - name: Remove previous application files
+      ansible.windows.win_shell: |
+        if (Test-Path '{{ app_directory }}') {
+          Get-ChildItem -Path '{{ app_directory }}' -Force |
+          Remove-Item -Recurse -Force
+        }
+      changed_when: true
+
+    - name: Copy deployment package
+      ansible.windows.win_copy:
+        src: "{{ deployment_zip }}"
+        dest: "{{ remote_zip }}"
+
+    - name: Extract deployment package
+      community.windows.win_unzip:
+        src: "{{ remote_zip }}"
+        dest: "{{ app_directory }}"
+        delete_archive: false
+
+    - name: Create IIS application pool
+      community.windows.win_iis_webapppool:
+        name: "{{ app_pool_name }}"
+        state: started
+        attributes:
+          managedRuntimeVersion: ""
+          startMode: AlwaysRunning
+
+    - name: Remove Default Web Site
+      community.windows.win_iis_website:
+        name: "Default Web Site"
+        state: absent
+
+    - name: Create IIS website
+      community.windows.win_iis_website:
+        name: "{{ site_name }}"
+        state: started
+        port: 80
+        ip: "*"
+        hostname: ""
+        application_pool: "{{ app_pool_name }}"
+        physical_path: "{{ app_directory }}"
+
+    - name: Grant IIS application pool read access
+      ansible.windows.win_acl:
+        path: "{{ app_directory }}"
+        user: "IIS AppPool\\{{ app_pool_name }}"
+        rights: ReadAndExecute
+        type: allow
+        state: present
+        inherit: ContainerInherit,ObjectInherit
+        propagation: None
+
+    - name: Restart IIS
+      ansible.windows.win_shell: iisreset
