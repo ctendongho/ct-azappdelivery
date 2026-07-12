@@ -171,3 +171,12 @@ variable "root_certificate" {
   type        = string
   sensitive   = true
 }
+
+# Application Gateway
+variable "appgw_subnet_name" {
+  default = "ct-appgwsnet"
+}
+
+variable "appgw_subnet_prefix" {
+  default = ["10.10.50.0/24"]
+}

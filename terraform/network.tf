@@ -85,3 +85,10 @@ resource "azurerm_subnet" "gateway" {
   virtual_network_name = azurerm_virtual_network.main.name
   address_prefixes     = ["10.10.250.0/27"]
 }
+
+resource "azurerm_subnet" "appgw" {
+  name                 = var.appgw_subnet_name
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = var.appgw_subnet_prefix
+}
