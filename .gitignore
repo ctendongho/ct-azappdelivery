@@ -42,3 +42,13 @@ terraform/terraform.tfvars
 # Temporary files
 *.tmp
 *.log
+
+# Terraform variables and state
+terraform/terraform.tfvars
+*.tfstate
+*.tfstate.*
+
+# Python generated files
+__pycache__/
+*.pyc
+*.pyo
