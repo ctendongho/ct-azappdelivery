@@ -28,3 +28,17 @@ Thumbs.db
 .vscode/
 .idea/
 terraform/terraform.tfvars
+
+# .NET build artifacts
+**/bin/
+**/obj/
+**/publish/
+
+# Visual Studio and local user files
+.vs/
+*.user
+*.suo
+
+# Temporary files
+*.tmp
+*.log
