@@ -7,6 +7,7 @@
     app_directory: "C:\\inetpub\\CTInventoryPortal"
     app_pool_name: "CTInventoryPortal"
     site_name: "CTInventoryPortal"
+    appinsights_connection_string: "{{ lookup('env', 'APPINSIGHTS_CONNECTION_STRING') }}"
 
     deployment_zip: "../../application/CTInventoryPortal/CTInventoryPortal.zip"
     remote_zip: "C:\\Windows\\Temp\\CTInventoryPortal.zip"
@@ -169,6 +170,64 @@
         src: "{{ remote_zip }}"
         dest: "{{ app_directory }}"
         delete_archive: false
+    
+    - name: Configure Application Insights in web.config
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = 'Stop'
+
+          $webConfigPath = '{{ app_directory }}\web.config'
+          $connectionString = '{{ appinsights_connection_string }}'
+
+          if ([string]::IsNullOrWhiteSpace($connectionString)) {
+              throw 'APPLICATIONINSIGHTS_CONNECTION_STRING is empty.'
+          }
+
+          [xml]$webConfig = Get-Content -Path $webConfigPath
+
+          $aspNetCore = $webConfig.SelectSingleNode(
+              '//system.webServer/aspNetCore'
+          )
+
+          if ($null -eq $aspNetCore) {
+              throw 'aspNetCore section was not found in web.config.'
+          }
+
+          $environmentVariables = $aspNetCore.SelectSingleNode(
+              'environmentVariables'
+          )
+
+          if ($null -eq $environmentVariables) {
+              $environmentVariables = $webConfig.CreateElement(
+                  'environmentVariables'
+              )
+              $aspNetCore.AppendChild($environmentVariables) | Out-Null
+          }
+
+          $environmentVariable = $environmentVariables.SelectSingleNode(
+              "environmentVariable[@name='APPLICATIONINSIGHTS_CONNECTION_STRING']"
+          )
+
+          if ($null -eq $environmentVariable) {
+              $environmentVariable = $webConfig.CreateElement(
+                  'environmentVariable'
+              )
+              $environmentVariable.SetAttribute(
+                  'name',
+                  'APPLICATIONINSIGHTS_CONNECTION_STRING'
+              )
+              $environmentVariables.AppendChild(
+                  $environmentVariable
+              ) | Out-Null
+          }
+
+          $environmentVariable.SetAttribute(
+              'value',
+              $connectionString
+          )
+
+          $webConfig.Save($webConfigPath)
+      no_log: true
 
     - name: Configure IIS application pool
       community.windows.win_iis_webapppool:
