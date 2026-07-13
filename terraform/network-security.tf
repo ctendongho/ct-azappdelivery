@@ -60,6 +60,20 @@ resource "azurerm_network_security_rule" "allow_ssh" {
   network_security_group_name = azurerm_network_security_group.public.name
 }
 
+resource "azurerm_network_security_rule" "allow_grafana" {
+  name                        = "Allow-Grafana"
+  priority                    = 105
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "3000"
+  source_address_prefix       = var.admin_public_ip
+  destination_address_prefix  = "*"
+  resource_group_name         = "ct-azapp-rg"
+  network_security_group_name = "ct-azappmain-nsg"
+}
+
 resource "azurerm_network_security_rule" "allow_http" {
   name                        = "Allow-HTTP"
   priority                    = 110

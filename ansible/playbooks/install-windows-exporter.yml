@@ -1,0 +1,95 @@
+---
+- name: Install and configure Windows Exporter
+  hosts:
+    - app_servers
+    - sql_servers
+  gather_facts: false
+
+  vars:
+    windows_exporter_version: "0.31.3"
+    windows_exporter_msi: "windows_exporter-{{ windows_exporter_version }}-amd64.msi"
+    windows_exporter_url: "https://github.com/prometheus-community/windows_exporter/releases/download/v{{ windows_exporter_version }}/{{ windows_exporter_msi }}"
+    windows_exporter_path: "C:\\Windows\\Temp\\{{ windows_exporter_msi }}"
+
+  tasks:
+    - name: Stop Windows Exporter service if present
+      ansible.windows.win_service:
+        name: windows_exporter
+        state: stopped
+      failed_when: false
+
+    - name: Uninstall existing Windows Exporter
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = 'Stop'
+
+          $product = Get-CimInstance Win32_Product |
+              Where-Object {
+                  $_.Name -like 'windows_exporter*'
+              } |
+              Select-Object -First 1
+
+          if ($null -ne $product) {
+              $result = Invoke-CimMethod `
+                  -InputObject $product `
+                  -MethodName Uninstall
+
+              if ($result.ReturnValue -ne 0) {
+                  throw "Uninstall failed with code $($result.ReturnValue)"
+              }
+
+              $Ansible.Changed = $true
+          }
+          else {
+              $Ansible.Changed = $false
+          }
+
+    - name: Download Windows Exporter installer
+      ansible.windows.win_get_url:
+        url: "{{ windows_exporter_url }}"
+        dest: "{{ windows_exporter_path }}"
+        force: true
+
+    - name: Install Windows Exporter on application servers
+      ansible.windows.win_package:
+        path: "{{ windows_exporter_path }}"
+        arguments: 'ENABLED_COLLECTORS="cpu,logical_disk,memory,net,os,service,system,iis"'
+        state: present
+      when: inventory_hostname in groups['app_servers']
+
+    - name: Install Windows Exporter on SQL servers
+      ansible.windows.win_package:
+        path: "{{ windows_exporter_path }}"
+        arguments: 'ENABLED_COLLECTORS="cpu,logical_disk,memory,net,os,service,system,mssql"'
+        state: present
+      when: inventory_hostname in groups['sql_servers']
+
+    - name: Allow Windows Exporter through Windows Firewall
+      community.windows.win_firewall_rule:
+        name: Windows Exporter
+        localport: 9182
+        action: allow
+        direction: in
+        protocol: tcp
+        state: present
+        enabled: true
+
+    - name: Ensure Windows Exporter service is running
+      ansible.windows.win_service:
+        name: windows_exporter
+        start_mode: auto
+        state: started
+
+    - name: Verify Windows Exporter health endpoint
+      ansible.windows.win_uri:
+        url: http://localhost:9182/health
+        method: GET
+        status_code: 200
+      register: exporter_health
+      retries: 10
+      delay: 5
+      until: exporter_health.status_code == 200
+
+    - name: Display Windows Exporter status
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} Windows Exporter is healthy on port 9182"
