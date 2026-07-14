@@ -1,0 +1,123 @@
+---
+- name: Configure IIS security headers
+  hosts: app_servers
+  gather_facts: false
+
+  vars:
+    site_name: "CTInventoryPortal"
+
+  tasks:
+    - name: Configure security headers at the IIS website level
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = 'Stop'
+
+          Import-Module WebAdministration
+
+          $siteName = '{{ site_name }}'
+          $configurationPath = "MACHINE/WEBROOT/APPHOST/$siteName"
+
+          $securityHeaders = @{
+              'X-Content-Type-Options' = 'nosniff'
+              'X-Frame-Options' = 'SAMEORIGIN'
+              'Referrer-Policy' = 'strict-origin-when-cross-origin'
+              'Permissions-Policy' = 'camera=(), microphone=(), geolocation=(), payment=(), usb=()'
+              'Content-Security-Policy' = "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; object-src 'none'; img-src 'self' data:; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'"
+          }
+
+          foreach ($headerName in $securityHeaders.Keys) {
+              $existingHeader = Get-WebConfigurationProperty `
+                  -PSPath $configurationPath `
+                  -Filter "system.webServer/httpProtocol/customHeaders/add[@name='$headerName']" `
+                  -Name "." `
+                  -ErrorAction SilentlyContinue
+
+              if ($null -ne $existingHeader) {
+                  Remove-WebConfigurationProperty `
+                      -PSPath $configurationPath `
+                      -Filter "system.webServer/httpProtocol/customHeaders" `
+                      -Name "." `
+                      -AtElement @{ name = $headerName }
+              }
+
+              Add-WebConfigurationProperty `
+                  -PSPath $configurationPath `
+                  -Filter "system.webServer/httpProtocol/customHeaders" `
+                  -Name "." `
+                  -Value @{
+                      name  = $headerName
+                      value = $securityHeaders[$headerName]
+                  }
+          }
+
+          $poweredByHeader = Get-WebConfigurationProperty `
+              -PSPath $configurationPath `
+              -Filter "system.webServer/httpProtocol/customHeaders/add[@name='X-Powered-By']" `
+              -Name "." `
+              -ErrorAction SilentlyContinue
+
+          if ($null -ne $poweredByHeader) {
+              Remove-WebConfigurationProperty `
+                  -PSPath $configurationPath `
+                  -Filter "system.webServer/httpProtocol/customHeaders" `
+                  -Name "." `
+                  -AtElement @{ name = 'X-Powered-By' }
+          }
+
+          $Ansible.Changed = $true
+
+    - name: Restart IIS
+      ansible.windows.win_shell: iisreset
+
+    - name: Wait for the application
+      ansible.windows.win_uri:
+        url: "http://localhost/health"
+        method: GET
+        status_code: 200
+      register: health_result
+      retries: 12
+      delay: 5
+      until: health_result.status_code == 200
+
+    - name: Verify security headers locally
+      ansible.windows.win_powershell:
+        script: |
+          $response = Invoke-WebRequest `
+              -Uri 'http://localhost/' `
+              -Method Head `
+              -UseBasicParsing
+
+          $requiredHeaders = @(
+              'X-Content-Type-Options',
+              'X-Frame-Options',
+              'Referrer-Policy',
+              'Permissions-Policy',
+              'Content-Security-Policy'
+          )
+
+          $missingHeaders = @()
+
+          foreach ($header in $requiredHeaders) {
+              if (-not $response.Headers[$header]) {
+                  $missingHeaders += $header
+              }
+          }
+
+          if ($missingHeaders.Count -gt 0) {
+              throw "Missing headers: $($missingHeaders -join ', ')"
+          }
+
+          $Ansible.Result = @{
+              status = $response.StatusCode
+              headers = $requiredHeaders
+          }
+
+          $Ansible.Changed = $false
+      register: header_check
+
+    - name: Display validation result
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }} returned HTTP
+          {{ header_check.result.status }}
+          with all required security headers.
