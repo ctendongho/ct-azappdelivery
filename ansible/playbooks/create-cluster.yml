@@ -4,7 +4,7 @@
   gather_facts: false
 
   vars:
-    ansible_become_password: "ReplaceWithAStrongPassword123!"
+    ansible_become_password: "{{ vault_domain_admin_password }}"
 
   tasks:
 

@@ -8,6 +8,6 @@
       microsoft.ad.membership:
         dns_domain_name: ad.ctinventorytracker.com
         domain_admin_user: "CTINV\\azureadmin"
-        domain_admin_password: "ReplaceWithAStrongPassword123!"
+        domain_admin_password: "{{ vault_domain_admin_password }}"
         state: domain
         reboot: true

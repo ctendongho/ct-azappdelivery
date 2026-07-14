@@ -5,7 +5,7 @@
 
   vars:
     app_login: "ctinventoryapp"
-    app_password: "ReplaceWithASeparateStrongAppPassword123!"
+    app_password: "{{ vault_application_password }}"
 
   tasks:
     - name: Create application login and database user
@@ -60,7 +60,7 @@
 
   vars:
     app_login: "ctinventoryapp"
-    app_password: "ReplaceWithASeparateStrongAppPassword123!"
+    app_password: "{{ vault_application_password }}"
     login_sid: "{{ hostvars['ct-azappsql01']['primary_app_login'].result.login_sid }}"
 
   tasks:

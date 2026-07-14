@@ -30,6 +30,12 @@ resource "azurerm_role_assignment" "appgw_key_vault_secrets_user" {
   principal_id         = azurerm_user_assigned_identity.appgw.principal_id
 }
 
+resource "azurerm_role_assignment" "vmss_key_vault_secrets_user" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = azurerm_user_assigned_identity.main.principal_id
+}
+
 resource "azurerm_role_assignment" "terraform_key_vault_admin" {
   scope                = azurerm_key_vault.main.id
   role_definition_name = "Key Vault Administrator"

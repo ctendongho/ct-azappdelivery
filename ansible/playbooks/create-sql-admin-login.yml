@@ -5,7 +5,7 @@
 
   vars:
     sql_admin_login: "ctsqladmin"
-    sql_admin_password: "ReplaceWithAStrongPassword123!"
+    sql_admin_password: "{{ vault_sql_admin_password }}"
 
   tasks:
     - name: Create login and capture SID
@@ -48,7 +48,7 @@
 
   vars:
     sql_admin_login: "ctsqladmin"
-    sql_admin_password: "ReplaceWithAStrongPassword123!"
+    sql_admin_password: "{{ vault_sql_admin_password }}"
     login_sid: "{{ hostvars['ct-azappsql01']['primary_login'].result.login_sid }}"
 
   tasks:

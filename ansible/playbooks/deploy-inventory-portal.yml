@@ -7,7 +7,6 @@
     app_directory: "C:\\inetpub\\CTInventoryPortal"
     app_pool_name: "CTInventoryPortal"
     site_name: "CTInventoryPortal"
-    appinsights_connection_string: "{{ lookup('env', 'APPINSIGHTS_CONNECTION_STRING') }}"
 
     deployment_zip: "../../application/CTInventoryPortal/CTInventoryPortal.zip"
     remote_zip: "C:\\Windows\\Temp\\CTInventoryPortal.zip"
@@ -15,7 +14,25 @@
     hosting_bundle_url: "https://aka.ms/dotnet/8.0/dotnet-hosting-win.exe"
     hosting_bundle_path: "C:\\Windows\\Temp\\dotnet-hosting-8.exe"
 
+    appinsights_connection_string: >-
+      {{ lookup('env', 'APPINSIGHTS_CONNECTION_STRING') }}
+
+    key_vault_uri: "https://ctinvtracker-kv-3729.vault.azure.net/"
+    managed_identity_client_id: "eef0d9a6-c60e-48ae-98ea-c66491801ea8"
+
   tasks:
+    - name: Validate required deployment variables
+      ansible.builtin.assert:
+        that:
+          - appinsights_connection_string | length > 0
+          - key_vault_uri | length > 0
+          - managed_identity_client_id | length > 0
+        fail_msg: >-
+          Application Insights, Key Vault, or managed identity
+          configuration is missing.
+      run_once: true
+      no_log: true
+
     - name: Install required IIS features
       ansible.windows.win_feature:
         name:
@@ -48,7 +65,7 @@
 
           $Ansible.Result = @{
               runtime_installed = $runtimeInstalled
-              module_installed  = $moduleInstalled
+              module_installed = $moduleInstalled
               hosting_bundle_installed = (
                   $runtimeInstalled -and $moduleInstalled
               )
@@ -72,8 +89,7 @@
       register: hosting_bundle_install
 
     - name: Restart IIS after Hosting Bundle installation
-      ansible.windows.win_shell: |
-        iisreset
+      ansible.windows.win_shell: iisreset
       when:
         - hosting_bundle_install is defined
         - hosting_bundle_install is changed
@@ -90,7 +106,7 @@
         state: stopped
       failed_when: false
 
-    - name: Wait for IIS worker processes to release application files
+    - name: Release locked application files
       ansible.windows.win_powershell:
         script: |
           Import-Module WebAdministration
@@ -98,7 +114,9 @@
           $appPoolName = '{{ app_pool_name }}'
 
           try {
-              Stop-WebAppPool -Name $appPoolName -ErrorAction SilentlyContinue
+              Stop-WebAppPool `
+                  -Name $appPoolName `
+                  -ErrorAction SilentlyContinue
           }
           catch {
           }
@@ -112,7 +130,10 @@
               }
 
           foreach ($process in $workerProcesses) {
-              Stop-Process -Id $process.ProcessId -Force -ErrorAction SilentlyContinue
+              Stop-Process `
+                  -Id $process.ProcessId `
+                  -Force `
+                  -ErrorAction SilentlyContinue
           }
 
           Start-Sleep -Seconds 5
@@ -131,17 +152,31 @@
           $appDirectory = '{{ app_directory }}'
 
           if (-not (Test-Path $appDirectory)) {
-              New-Item -Path $appDirectory -ItemType Directory -Force | Out-Null
+              New-Item `
+                  -Path $appDirectory `
+                  -ItemType Directory `
+                  -Force |
+                  Out-Null
+
               $Ansible.Changed = $true
               return
           }
 
           $maximumAttempts = 5
 
-          for ($attempt = 1; $attempt -le $maximumAttempts; $attempt++) {
+          for (
+              $attempt = 1;
+              $attempt -le $maximumAttempts;
+              $attempt++
+          ) {
               try {
-                  Get-ChildItem -Path $appDirectory -Force |
-                      Remove-Item -Recurse -Force -ErrorAction Stop
+                  Get-ChildItem `
+                      -Path $appDirectory `
+                      -Force |
+                      Remove-Item `
+                          -Recurse `
+                          -Force `
+                          -ErrorAction Stop
 
                   $Ansible.Changed = $true
                   return
@@ -170,16 +205,30 @@
         src: "{{ remote_zip }}"
         dest: "{{ app_directory }}"
         delete_archive: false
-    
-    - name: Configure Application Insights in web.config
+
+    - name: Configure application environment variables in web.config
       ansible.windows.win_powershell:
         script: |
           $ErrorActionPreference = 'Stop'
 
           $webConfigPath = '{{ app_directory }}\web.config'
-          $connectionString = '{{ appinsights_connection_string }}'
 
-          if ([string]::IsNullOrWhiteSpace($connectionString)) {
+          $applicationInsightsConnectionString = @'
+          {{ appinsights_connection_string }}
+          '@.Trim()
+
+          $keyVaultUri = '{{ key_vault_uri }}'
+          $managedIdentityClientId = '{{ managed_identity_client_id }}'
+
+          if (-not (Test-Path $webConfigPath)) {
+              throw "web.config was not found at $webConfigPath."
+          }
+
+          if (
+              [string]::IsNullOrWhiteSpace(
+                  $applicationInsightsConnectionString
+              )
+          ) {
               throw 'APPLICATIONINSIGHTS_CONNECTION_STRING is empty.'
           }
 
@@ -201,32 +250,61 @@
               $environmentVariables = $webConfig.CreateElement(
                   'environmentVariables'
               )
-              $aspNetCore.AppendChild($environmentVariables) | Out-Null
-          }
 
-          $environmentVariable = $environmentVariables.SelectSingleNode(
-              "environmentVariable[@name='APPLICATIONINSIGHTS_CONNECTION_STRING']"
-          )
-
-          if ($null -eq $environmentVariable) {
-              $environmentVariable = $webConfig.CreateElement(
-                  'environmentVariable'
-              )
-              $environmentVariable.SetAttribute(
-                  'name',
-                  'APPLICATIONINSIGHTS_CONNECTION_STRING'
-              )
-              $environmentVariables.AppendChild(
-                  $environmentVariable
+              $aspNetCore.AppendChild(
+                  $environmentVariables
               ) | Out-Null
           }
 
-          $environmentVariable.SetAttribute(
-              'value',
-              $connectionString
-          )
+          function Set-EnvironmentVariable {
+              param(
+                  [Parameter(Mandatory = $true)]
+                  [string]$Name,
+
+                  [Parameter(Mandatory = $true)]
+                  [string]$Value
+              )
+
+              $node = $environmentVariables.SelectSingleNode(
+                  "environmentVariable[@name='$Name']"
+              )
+
+              if ($null -eq $node) {
+                  $node = $webConfig.CreateElement(
+                      'environmentVariable'
+                  )
+
+                  $node.SetAttribute(
+                      'name',
+                      $Name
+                  )
+
+                  $environmentVariables.AppendChild(
+                      $node
+                  ) | Out-Null
+              }
+
+              $node.SetAttribute(
+                  'value',
+                  $Value
+              )
+          }
+
+          Set-EnvironmentVariable `
+              -Name 'APPLICATIONINSIGHTS_CONNECTION_STRING' `
+              -Value $applicationInsightsConnectionString
+
+          Set-EnvironmentVariable `
+              -Name 'KeyVault__Uri' `
+              -Value $keyVaultUri
+
+          Set-EnvironmentVariable `
+              -Name 'KeyVault__ManagedIdentityClientId' `
+              -Value $managedIdentityClientId
 
           $webConfig.Save($webConfigPath)
+
+          $Ansible.Changed = $true
       no_log: true
 
     - name: Configure IIS application pool
@@ -253,7 +331,7 @@
         application_pool: "{{ app_pool_name }}"
         physical_path: "{{ app_directory }}"
 
-    - name: Grant IIS application pool read and execute permissions
+    - name: Grant IIS application pool permissions
       ansible.windows.win_acl:
         path: "{{ app_directory }}"
         user: "IIS AppPool\\{{ app_pool_name }}"
@@ -274,8 +352,7 @@
         state: started
 
     - name: Restart IIS after deployment
-      ansible.windows.win_shell: |
-        iisreset
+      ansible.windows.win_shell: iisreset
 
     - name: Wait for application health endpoint
       ansible.windows.win_uri:
@@ -284,12 +361,14 @@
         return_content: true
         status_code: 200
       register: health_check
-      retries: 12
-      delay: 5
+      retries: 18
+      delay: 10
       until:
         - health_check.status_code == 200
         - "'Healthy' in health_check.content"
 
     - name: Display application health
       ansible.builtin.debug:
-        msg: "{{ inventory_hostname }} health check returned: {{ health_check.content }}"
+        msg: >-
+          {{ inventory_hostname }} health check returned:
+          {{ health_check.content }}

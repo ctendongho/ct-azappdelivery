@@ -1,9 +1,28 @@
+using Azure.Identity;
 using CTInventoryPortal.Data;
 using Microsoft.AspNetCore.CookiePolicy;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var keyVaultUri =
+    builder.Configuration["KeyVault:Uri"]
+    ?? throw new InvalidOperationException(
+        "Key Vault URI configuration was not found.");
+
+var managedIdentityClientId =
+    builder.Configuration["KeyVault:ManagedIdentityClientId"]
+    ?? throw new InvalidOperationException(
+        "Managed identity client ID configuration was not found.");
+
+var managedIdentityCredential = new ManagedIdentityCredential(
+    ManagedIdentityId.FromUserAssignedClientId(
+        managedIdentityClientId));
+
+builder.Configuration.AddAzureKeyVault(
+    new Uri(keyVaultUri),
+    managedIdentityCredential);
 
 builder.Services.AddApplicationInsightsTelemetry();
 
@@ -34,7 +53,8 @@ builder.Services.Configure<CookiePolicyOptions>(options =>
 builder.Services.AddControllersWithViews();
 
 var connectionString =
-    builder.Configuration.GetConnectionString("InventoryDatabase")
+    builder.Configuration.GetConnectionString(
+        "InventoryDatabase")
     ?? throw new InvalidOperationException(
         "Connection string 'InventoryDatabase' was not found.");
 

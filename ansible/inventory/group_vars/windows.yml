@@ -1,10 +1,6 @@
 ---
-# WinRM Connection
 ansible_connection: winrm
-ansible_port: 5985
 ansible_winrm_transport: ntlm
+ansible_port: 5985
 ansible_winrm_server_cert_validation: ignore
-
-# Windows Credentials
-ansible_user: azureadmin
-ansible_password: ReplaceWithAStrongPassword123!
+ansible_password: "{{ vault_windows_password }}"
