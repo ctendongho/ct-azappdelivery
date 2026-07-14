@@ -95,4 +95,4 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Inventory}/{action=Index}/{id?}");
 
-app.Run();
+await app.RunAsync();

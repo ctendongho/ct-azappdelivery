@@ -227,3 +227,17 @@ resource "azurerm_network_security_rule" "allow_appgw_to_app_servers" {
   resource_group_name         = azurerm_resource_group.main.name
   network_security_group_name = azurerm_network_security_group.app.name
 }
+
+resource "azurerm_network_security_rule" "allow_sonarqube" {
+  name                        = "Allow-SonarQube"
+  priority                    = 106
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "9000"
+  source_address_prefix       = var.admin_public_ip
+  destination_address_prefix  = "*"
+  resource_group_name         = "ct-azapp-rg"
+  network_security_group_name = "ct-azappmain-nsg"
+}

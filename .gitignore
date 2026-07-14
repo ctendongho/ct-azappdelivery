@@ -52,3 +52,6 @@ terraform/terraform.tfvars
 __pycache__/
 *.pyc
 *.pyo
+
+# SonarQube generated files
+application/CTInventoryPortal/.sonarqube/

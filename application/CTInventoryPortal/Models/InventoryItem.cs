@@ -17,13 +17,15 @@ public class InventoryItem
     [Display(Name = "SKU")]
     public string Sku { get; set; } = string.Empty;
 
+    [Required]
     [Range(0, int.MaxValue)]
-    public int Quantity { get; set; }
+    public int? Quantity { get; set; }
 
+    [Required]
     [Range(typeof(decimal), "0", "9999999999999999.99")]
     [Column(TypeName = "decimal(18,2)")]
     [Display(Name = "Unit price")]
-    public decimal UnitPrice { get; set; }
+    public decimal? UnitPrice { get; set; }
 
     [Display(Name = "Created")]
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
