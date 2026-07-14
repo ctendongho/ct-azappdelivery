@@ -241,3 +241,17 @@ resource "azurerm_network_security_rule" "allow_sonarqube" {
   resource_group_name         = "ct-azapp-rg"
   network_security_group_name = "ct-azappmain-nsg"
 }
+
+resource "azurerm_network_security_rule" "allow_jenkins" {
+  name                        = "Allow-Jenkins"
+  priority                    = 107
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "8080"
+  source_address_prefix       = var.admin_public_ip
+  destination_address_prefix  = "*"
+  resource_group_name         = "ct-azapp-rg"
+  network_security_group_name = "ct-azappmain-nsg"
+}
