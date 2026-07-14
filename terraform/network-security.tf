@@ -70,7 +70,7 @@ resource "azurerm_network_security_rule" "allow_grafana" {
   destination_port_range      = "3000"
   source_address_prefix       = var.admin_public_ip
   destination_address_prefix  = "*"
-  resource_group_name         = "ct-azapp-rg"
+  resource_group_name         = azurerm_resource_group.main.name
   network_security_group_name = "ct-azappmain-nsg"
 }
 
@@ -238,7 +238,7 @@ resource "azurerm_network_security_rule" "allow_sonarqube" {
   destination_port_range      = "9000"
   source_address_prefix       = var.admin_public_ip
   destination_address_prefix  = "*"
-  resource_group_name         = "ct-azapp-rg"
+  resource_group_name         = azurerm_resource_group.main.name
   network_security_group_name = "ct-azappmain-nsg"
 }
 
@@ -252,6 +252,6 @@ resource "azurerm_network_security_rule" "allow_jenkins" {
   destination_port_range      = "8080"
   source_address_prefix       = var.admin_public_ip
   destination_address_prefix  = "*"
-  resource_group_name         = "ct-azapp-rg"
+  resource_group_name         = azurerm_resource_group.main.name
   network_security_group_name = "ct-azappmain-nsg"
 }
