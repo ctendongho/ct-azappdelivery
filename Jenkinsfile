@@ -21,7 +21,7 @@ pipeline {
 
                 sh '''
                     echo "Branch: ${BRANCH_NAME}"
-                    echo "Commit: ${GIT_COMMIT}"
+                    echo "Commit: ${GIT_COMMIT:-$(git rev-parse --short HEAD 2>/dev/null || echo unknown)}"
                     echo "Build:  ${BUILD_NUMBER}"
 
                     mkdir -p pipeline-reports
@@ -319,7 +319,7 @@ pipeline {
 ==========================================================================================
 Branch       : ${BRANCH_NAME}
 Build        : ${BUILD_NUMBER}
-Commit       : ${GIT_COMMIT}
+Commit       : ${GIT_COMMIT:-$(git rev-parse --short HEAD 2>/dev/null || echo unknown)}
 Build URL    : ${BUILD_URL}
 ==========================================================================================
 COMPONENT                          | STATUS    | DETAILS
