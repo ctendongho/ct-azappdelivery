@@ -100,27 +100,33 @@ pipeline {
         }
 
         stage('SonarQube Analysis') {
-            when {
-                branch 'dev'
-            }
+    when {
+        branch 'dev'
+    }
 
-            steps {
-                withSonarQubeEnv('SonarQube') {
-                    sh './jenkins/sonarqube-scan.sh'
-                }
-            }
-
-            post {
-                always {
-                    archiveArtifacts(
-                        artifacts:
-                            'pipeline-reports/sonarqube-quality-gate.txt',
-                        allowEmptyArchive: true,
-                        fingerprint: true
-                    )
-                }
+    steps {
+        withCredentials([
+            string(
+                credentialsId: 'sonarqube-token',
+                variable: 'SONAR_AUTH_TOKEN'
+            )
+        ]) {
+            withSonarQubeEnv('SonarQube') {
+                sh './jenkins/sonarqube-scan.sh'
             }
         }
+    }
+
+    post {
+        always {
+            archiveArtifacts(
+                artifacts: 'pipeline-reports/sonarqube-quality-gate.txt',
+                allowEmptyArchive: true,
+                fingerprint: true
+            )
+        }
+    }
+}
 
         stage('Trivy Security Scan') {
             when {
