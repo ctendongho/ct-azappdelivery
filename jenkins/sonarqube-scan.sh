@@ -6,6 +6,9 @@ PROJECT="CTInventoryPortal.csproj"
 PROJECT_KEY="ct-inventory-portal"
 REPORT_DIR="${WORKSPACE}/pipeline-reports"
 
+: "${SONAR_HOST_URL:?SONAR_HOST_URL is not set}"
+: "${SONAR_TOKEN:?SONAR_TOKEN is not set}"
+
 mkdir -p "${REPORT_DIR}"
 
 cd "${APP_DIR}"
@@ -20,7 +23,7 @@ dotnet tool install \
 .sonar-tools/dotnet-sonarscanner begin \
   /k:"${PROJECT_KEY}" \
   /d:sonar.host.url="${SONAR_HOST_URL}" \
-  /d:sonar.token="${SONAR_AUTH_TOKEN}"
+  /d:sonar.token="${SONAR_TOKEN}"
 
 dotnet build \
   "${PROJECT}" \
@@ -28,7 +31,7 @@ dotnet build \
   --no-incremental
 
 .sonar-tools/dotnet-sonarscanner end \
-  /d:sonar.token="${SONAR_AUTH_TOKEN}"
+  /d:sonar.token="${SONAR_TOKEN}"
 
 QUALITY_STATUS="NONE"
 
@@ -38,7 +41,8 @@ for attempt in $(seq 1 12); do
     QUALITY_STATUS=$(
         curl \
           --silent \
-          --user "${SONAR_AUTH_TOKEN}:" \
+          --fail \
+          --user "${SONAR_TOKEN}:" \
           "${SONAR_HOST_URL}/api/qualitygates/project_status?projectKey=${PROJECT_KEY}" |
         python3 -c \
           "import json,sys; print(json.load(sys.stdin)['projectStatus']['status'])"
@@ -55,7 +59,7 @@ echo "${QUALITY_STATUS}" \
   > "${REPORT_DIR}/sonarqube-quality-gate.txt"
 
 if [ "${QUALITY_STATUS}" != "OK" ]; then
-    echo "SonarQube Quality Gate did not pass."
+    echo "SonarQube Quality Gate did not pass. Status: ${QUALITY_STATUS}"
     exit 1
 fi
 
