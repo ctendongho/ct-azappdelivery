@@ -1,0 +1,86 @@
+---
+- name: Create application login on primary
+  hosts: ct-azappsql01
+  gather_facts: false
+
+  vars:
+    app_login: "ctinventoryapp"
+    app_password: "{{ vault_application_password }}"
+
+  tasks:
+    - name: Create application login and database user
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = "Stop"
+
+          Invoke-Sqlcmd -ServerInstance localhost -Query "
+          IF NOT EXISTS (
+              SELECT 1
+              FROM sys.server_principals
+              WHERE name = N'{{ app_login }}'
+          )
+          BEGIN
+              CREATE LOGIN [{{ app_login }}]
+              WITH PASSWORD = N'{{ app_password }}',
+                   CHECK_POLICY = ON,
+                   CHECK_EXPIRATION = OFF;
+          END;
+          "
+
+          Invoke-Sqlcmd -ServerInstance localhost -Database CTInvTracker -Query "
+          IF NOT EXISTS (
+              SELECT 1
+              FROM sys.database_principals
+              WHERE name = N'{{ app_login }}'
+          )
+          BEGIN
+              CREATE USER [{{ app_login }}]
+              FOR LOGIN [{{ app_login }}];
+          END;
+
+          ALTER ROLE [db_datareader] ADD MEMBER [{{ app_login }}];
+          ALTER ROLE [db_datawriter] ADD MEMBER [{{ app_login }}];
+          "
+
+          $sid = Invoke-Sqlcmd -ServerInstance localhost -Query "
+          SELECT CONVERT(varchar(170), sid, 1) AS LoginSid
+          FROM sys.server_principals
+          WHERE name = N'{{ app_login }}';
+          "
+
+          $Ansible.Result = @{
+              login_sid = $sid.LoginSid
+          }
+      register: primary_app_login
+      no_log: true
+
+- name: Create matching application login on secondary
+  hosts: ct-azappsql02
+  gather_facts: false
+
+  vars:
+    app_login: "ctinventoryapp"
+    app_password: "{{ vault_application_password }}"
+    login_sid: "{{ hostvars['ct-azappsql01']['primary_app_login'].result.login_sid }}"
+
+  tasks:
+    - name: Create matching application login
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = "Stop"
+
+          Invoke-Sqlcmd -ServerInstance localhost -Query "
+          IF NOT EXISTS (
+              SELECT 1
+              FROM sys.server_principals
+              WHERE name = N'{{ app_login }}'
+          )
+          BEGIN
+              CREATE LOGIN [{{ app_login }}]
+              WITH PASSWORD = N'{{ app_password }}',
+                   SID = {{ login_sid }},
+                   CHECK_POLICY = ON,
+                   CHECK_EXPIRATION = OFF;
+          END;
+          "
+      no_log: true

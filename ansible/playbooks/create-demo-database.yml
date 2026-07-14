@@ -1,0 +1,16 @@
+---
+- name: Create Inventory database
+  hosts: ct-azappsql01
+  gather_facts: false
+
+  tasks:
+
+    - name: Create CTInventoryTracker database
+      ansible.windows.win_powershell:
+        script: |
+          Invoke-Sqlcmd -ServerInstance localhost -Query "
+          IF DB_ID('CTInventoryTracker') IS NULL
+          BEGIN
+              CREATE DATABASE CTInventoryTracker;
+          END
+          "

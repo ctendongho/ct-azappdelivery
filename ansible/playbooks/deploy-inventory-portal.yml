@@ -1,0 +1,443 @@
+---
+- name: Deploy CT Inventory Portal to IIS
+  hosts: app_servers
+  gather_facts: false
+
+  vars:
+    app_directory: "C:\\inetpub\\CTInventoryPortal"
+    app_pool_name: "CTInventoryPortal"
+    site_name: "CTInventoryPortal"
+
+    deployment_zip: "../../application/CTInventoryPortal/CTInventoryPortal.zip"
+    remote_zip: "C:\\Windows\\Temp\\CTInventoryPortal.zip"
+
+    hosting_bundle_url: "https://aka.ms/dotnet/8.0/dotnet-hosting-win.exe"
+    hosting_bundle_path: "C:\\Windows\\Temp\\dotnet-hosting-8.exe"
+
+    appinsights_connection_string: >-
+      {{ lookup('env', 'APPINSIGHTS_CONNECTION_STRING') }}
+
+    key_vault_uri: "https://ctinvtracker-kv-3729.vault.azure.net/"
+    managed_identity_client_id: "eef0d9a6-c60e-48ae-98ea-c66491801ea8"
+
+  tasks:
+    - name: Validate required deployment variables
+      ansible.builtin.assert:
+        that:
+          - appinsights_connection_string | length > 0
+          - key_vault_uri | length > 0
+          - managed_identity_client_id | length > 0
+        fail_msg: >-
+          Application Insights, Key Vault, or managed identity
+          configuration is missing.
+      run_once: true
+      no_log: true
+
+    - name: Install required IIS features
+      ansible.windows.win_feature:
+        name:
+          - Web-Server
+          - Web-Mgmt-Tools
+          - Web-Scripting-Tools
+        state: present
+        include_management_tools: true
+
+    - name: Check for .NET 8 runtime and ASP.NET Core IIS module
+      ansible.windows.win_powershell:
+        script: |
+          $modulePath = 'C:\Program Files\IIS\Asp.Net Core Module\V2\aspnetcorev2.dll'
+          $dotnetPath = 'C:\Program Files\dotnet\dotnet.exe'
+
+          $runtimeInstalled = $false
+
+          if (Test-Path $dotnetPath) {
+              $runtimes = & $dotnetPath --list-runtimes
+
+              $runtimeInstalled = [bool](
+                  $runtimes |
+                  Where-Object {
+                      $_ -match '^Microsoft\.AspNetCore\.App 8\.'
+                  }
+              )
+          }
+
+          $moduleInstalled = Test-Path $modulePath
+
+          $Ansible.Result = @{
+              runtime_installed = $runtimeInstalled
+              module_installed = $moduleInstalled
+              hosting_bundle_installed = (
+                  $runtimeInstalled -and $moduleInstalled
+              )
+          }
+      register: hosting_bundle_check
+      changed_when: false
+
+    - name: Download .NET 8 Hosting Bundle
+      ansible.windows.win_get_url:
+        url: "{{ hosting_bundle_url }}"
+        dest: "{{ hosting_bundle_path }}"
+        force: true
+      when: not hosting_bundle_check.result.hosting_bundle_installed
+
+    - name: Install .NET 8 Hosting Bundle
+      ansible.windows.win_package:
+        path: "{{ hosting_bundle_path }}"
+        arguments: "/install /quiet /norestart"
+        state: present
+      when: not hosting_bundle_check.result.hosting_bundle_installed
+      register: hosting_bundle_install
+
+    - name: Restart IIS after Hosting Bundle installation
+      ansible.windows.win_shell: iisreset
+      when:
+        - hosting_bundle_install is defined
+        - hosting_bundle_install is changed
+
+    - name: Stop existing portal website
+      community.windows.win_iis_website:
+        name: "{{ site_name }}"
+        state: stopped
+      failed_when: false
+
+    - name: Stop existing portal application pool
+      community.windows.win_iis_webapppool:
+        name: "{{ app_pool_name }}"
+        state: stopped
+      failed_when: false
+
+    - name: Release locked application files
+      ansible.windows.win_powershell:
+        script: |
+          Import-Module WebAdministration
+
+          $appPoolName = '{{ app_pool_name }}'
+
+          try {
+              Stop-WebAppPool `
+                  -Name $appPoolName `
+                  -ErrorAction SilentlyContinue
+          }
+          catch {
+          }
+
+          Start-Sleep -Seconds 5
+
+          $workerProcesses = Get-CimInstance Win32_Process |
+              Where-Object {
+                  $_.Name -in @('w3wp.exe', 'dotnet.exe') -and
+                  $_.CommandLine -like '*CTInventoryPortal*'
+              }
+
+          foreach ($process in $workerProcesses) {
+              Stop-Process `
+                  -Id $process.ProcessId `
+                  -Force `
+                  -ErrorAction SilentlyContinue
+          }
+
+          Start-Sleep -Seconds 5
+
+          $Ansible.Changed = $false
+
+    - name: Create application directory
+      ansible.windows.win_file:
+        path: "{{ app_directory }}"
+        state: directory
+
+    - name: Remove previous application files
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = 'Stop'
+          $appDirectory = '{{ app_directory }}'
+
+          if (-not (Test-Path $appDirectory)) {
+              New-Item `
+                  -Path $appDirectory `
+                  -ItemType Directory `
+                  -Force |
+                  Out-Null
+
+              $Ansible.Changed = $true
+              return
+          }
+
+          $maximumAttempts = 5
+
+          for (
+              $attempt = 1;
+              $attempt -le $maximumAttempts;
+              $attempt++
+          ) {
+              try {
+                  Get-ChildItem `
+                      -Path $appDirectory `
+                      -Force |
+                      Remove-Item `
+                          -Recurse `
+                          -Force `
+                          -ErrorAction Stop
+
+                  $Ansible.Changed = $true
+                  return
+              }
+              catch {
+                  if ($attempt -eq $maximumAttempts) {
+                      throw
+                  }
+
+                  Start-Sleep -Seconds 5
+              }
+          }
+
+    - name: Remove old deployment package
+      ansible.windows.win_file:
+        path: "{{ remote_zip }}"
+        state: absent
+
+    - name: Copy deployment package
+      ansible.windows.win_copy:
+        src: "{{ deployment_zip }}"
+        dest: "{{ remote_zip }}"
+
+    - name: Extract deployment package
+      community.windows.win_unzip:
+        src: "{{ remote_zip }}"
+        dest: "{{ app_directory }}"
+        delete_archive: false
+
+    - name: Configure application environment variables in web.config
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = 'Stop'
+
+          $webConfigPath = '{{ app_directory }}\web.config'
+
+          $applicationInsightsConnectionString = @'
+          {{ appinsights_connection_string }}
+          '@.Trim()
+
+          $keyVaultUri = '{{ key_vault_uri }}'
+          $managedIdentityClientId = '{{ managed_identity_client_id }}'
+
+          if (-not (Test-Path $webConfigPath)) {
+              throw "web.config was not found at $webConfigPath."
+          }
+
+          if (
+              [string]::IsNullOrWhiteSpace(
+                  $applicationInsightsConnectionString
+              )
+          ) {
+              throw 'APPLICATIONINSIGHTS_CONNECTION_STRING is empty.'
+          }
+
+          [xml]$webConfig = Get-Content -Path $webConfigPath
+
+          $aspNetCore = $webConfig.SelectSingleNode(
+              '//system.webServer/aspNetCore'
+          )
+
+          if ($null -eq $aspNetCore) {
+              throw 'aspNetCore section was not found in web.config.'
+          }
+
+          $environmentVariables = $aspNetCore.SelectSingleNode(
+              'environmentVariables'
+          )
+
+          if ($null -eq $environmentVariables) {
+              $environmentVariables = $webConfig.CreateElement(
+                  'environmentVariables'
+              )
+
+              $aspNetCore.AppendChild(
+                  $environmentVariables
+              ) | Out-Null
+          }
+
+          function Set-EnvironmentVariable {
+              param(
+                  [Parameter(Mandatory = $true)]
+                  [string]$Name,
+
+                  [Parameter(Mandatory = $true)]
+                  [string]$Value
+              )
+
+              $node = $environmentVariables.SelectSingleNode(
+                  "environmentVariable[@name='$Name']"
+              )
+
+              if ($null -eq $node) {
+                  $node = $webConfig.CreateElement(
+                      'environmentVariable'
+                  )
+
+                  $node.SetAttribute(
+                      'name',
+                      $Name
+                  )
+
+                  $environmentVariables.AppendChild(
+                      $node
+                  ) | Out-Null
+              }
+
+              $node.SetAttribute(
+                  'value',
+                  $Value
+              )
+          }
+
+          Set-EnvironmentVariable `
+              -Name 'APPLICATIONINSIGHTS_CONNECTION_STRING' `
+              -Value $applicationInsightsConnectionString
+
+          Set-EnvironmentVariable `
+              -Name 'KeyVault__Uri' `
+              -Value $keyVaultUri
+
+          Set-EnvironmentVariable `
+              -Name 'KeyVault__ManagedIdentityClientId' `
+              -Value $managedIdentityClientId
+
+          $webConfig.Save($webConfigPath)
+
+          $Ansible.Changed = $true
+      no_log: true
+
+    - name: Remove IIS technology disclosure headers
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = 'Stop'
+
+          $webConfigPath = '{{ app_directory }}\web.config'
+
+          if (-not (Test-Path $webConfigPath)) {
+              throw "web.config was not found at $webConfigPath."
+          }
+
+          [xml]$webConfig = Get-Content -Path $webConfigPath
+
+          $systemWebServer = $webConfig.SelectSingleNode(
+              '//system.webServer'
+          )
+
+          if ($null -eq $systemWebServer) {
+              throw 'system.webServer section was not found.'
+          }
+
+          $httpProtocol = $systemWebServer.SelectSingleNode(
+              'httpProtocol'
+          )
+
+          if ($null -eq $httpProtocol) {
+              $httpProtocol = $webConfig.CreateElement(
+                  'httpProtocol'
+              )
+
+              $systemWebServer.AppendChild(
+                  $httpProtocol
+              ) | Out-Null
+          }
+
+          $customHeaders = $httpProtocol.SelectSingleNode(
+              'customHeaders'
+          )
+
+          if ($null -eq $customHeaders) {
+              $customHeaders = $webConfig.CreateElement(
+                  'customHeaders'
+              )
+
+              $httpProtocol.AppendChild(
+                  $customHeaders
+              ) | Out-Null
+          }
+
+          $existingRemove = $customHeaders.SelectSingleNode(
+              "remove[@name='X-Powered-By']"
+          )
+
+          if ($null -eq $existingRemove) {
+              $removeHeader = $webConfig.CreateElement('remove')
+              $removeHeader.SetAttribute(
+                  'name',
+                  'X-Powered-By'
+              )
+
+              $customHeaders.AppendChild(
+                  $removeHeader
+              ) | Out-Null
+          }
+
+          $webConfig.Save($webConfigPath)
+
+          $Ansible.Changed = $true
+
+    - name: Configure IIS application pool
+      community.windows.win_iis_webapppool:
+        name: "{{ app_pool_name }}"
+        state: stopped
+        attributes:
+          managedRuntimeVersion: ""
+          startMode: AlwaysRunning
+          processModel.identityType: ApplicationPoolIdentity
+
+    - name: Remove Default Web Site
+      community.windows.win_iis_website:
+        name: "Default Web Site"
+        state: absent
+
+    - name: Configure CT Inventory Portal website
+      community.windows.win_iis_website:
+        name: "{{ site_name }}"
+        state: stopped
+        port: 80
+        ip: "*"
+        hostname: ""
+        application_pool: "{{ app_pool_name }}"
+        physical_path: "{{ app_directory }}"
+
+    - name: Grant IIS application pool permissions
+      ansible.windows.win_acl:
+        path: "{{ app_directory }}"
+        user: "IIS AppPool\\{{ app_pool_name }}"
+        rights: ReadAndExecute
+        type: allow
+        state: present
+        inherit: ContainerInherit,ObjectInherit
+        propagation: None
+
+    - name: Start CT Inventory Portal application pool
+      community.windows.win_iis_webapppool:
+        name: "{{ app_pool_name }}"
+        state: started
+
+    - name: Start CT Inventory Portal website
+      community.windows.win_iis_website:
+        name: "{{ site_name }}"
+        state: started
+
+    - name: Restart IIS after deployment
+      ansible.windows.win_shell: iisreset
+
+    - name: Wait for application health endpoint
+      ansible.windows.win_uri:
+        url: "http://localhost/health"
+        method: GET
+        return_content: true
+        status_code: 200
+      register: health_check
+      retries: 18
+      delay: 10
+      until:
+        - health_check.status_code == 200
+        - "'Healthy' in health_check.content"
+
+    - name: Display application health
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }} health check returned:
+          {{ health_check.content }}

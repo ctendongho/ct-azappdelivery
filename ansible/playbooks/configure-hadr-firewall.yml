@@ -1,0 +1,18 @@
+---
+- name: Allow SQL Server HADR traffic
+  hosts: sql_servers
+  gather_facts: false
+
+  tasks:
+    - name: Allow inbound TCP 5022
+      community.windows.win_firewall_rule:
+        name: SQL Server Always On HADR
+        localport: 5022
+        action: allow
+        direction: in
+        protocol: tcp
+        profiles:
+          - domain
+          - private
+        state: present
+        enabled: true

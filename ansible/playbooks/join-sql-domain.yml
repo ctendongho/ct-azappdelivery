@@ -1,0 +1,13 @@
+---
+- name: Join SQL Servers to Active Directory
+  hosts: sql_servers
+  gather_facts: false
+
+  tasks:
+    - name: Join SQL Server to domain
+      microsoft.ad.membership:
+        dns_domain_name: ad.ctinventorytracker.com
+        domain_admin_user: "CTINV\\azureadmin"
+        domain_admin_password: "{{ vault_domain_admin_password }}"
+        state: domain
+        reboot: true

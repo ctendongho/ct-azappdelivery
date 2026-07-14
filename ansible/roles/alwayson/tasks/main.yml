@@ -1,0 +1,32 @@
+---
+- name: Enable SQL Server Always On Availability Groups
+  ansible.windows.win_powershell:
+    script: |
+      Import-Module SQLPS -DisableNameChecking
+
+      $server = New-Object Microsoft.SqlServer.Management.Smo.Server "localhost"
+
+      if (-not $server.IsHadrEnabled) {
+        Enable-SqlAlwaysOn `
+          -ServerInstance "localhost" `
+          -Force
+
+        $Ansible.Changed = $true
+      }
+      else {
+        $Ansible.Changed = $false
+      }
+  register: alwayson_enable
+
+- name: Restart SQL Server service if Always On was enabled
+  ansible.windows.win_service:
+    name: MSSQLSERVER
+    state: restarted
+  when: alwayson_enable.changed
+
+- name: Ensure SQL Server Agent is automatic and running
+  ansible.windows.win_service:
+    name: SQLSERVERAGENT
+    start_mode: auto
+    state: started
+# tasks file for ansible/roles/alwayson

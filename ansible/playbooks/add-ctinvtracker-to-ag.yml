@@ -1,0 +1,69 @@
+---
+- name: Add CTInvTracker to Availability Group on primary
+  hosts: ct-azappsql01
+  gather_facts: false
+
+  tasks:
+    - name: Add database to CTInventoryAG
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = "Stop"
+
+          $existing = Invoke-Sqlcmd `
+            -ServerInstance localhost `
+            -Query "
+            SELECT 1 AS IsJoined
+            FROM sys.availability_databases_cluster
+            WHERE database_name = 'CTInvTracker';
+            "
+
+          if (-not $existing) {
+            Invoke-Sqlcmd `
+              -ServerInstance localhost `
+              -QueryTimeout 0 `
+              -Query "
+              ALTER AVAILABILITY GROUP [CTInventoryAG]
+              ADD DATABASE [CTInvTracker];
+              "
+
+            $Ansible.Changed = $true
+          }
+          else {
+            $Ansible.Changed = $false
+          }
+
+- name: Join CTInvTracker on secondary
+  hosts: ct-azappsql02
+  gather_facts: false
+
+  tasks:
+    - name: Join secondary database to CTInventoryAG
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = "Stop"
+
+          $existing = Invoke-Sqlcmd `
+            -ServerInstance localhost `
+            -Query "
+            SELECT 1 AS IsJoined
+            FROM sys.dm_hadr_database_replica_states AS drs
+            JOIN sys.databases AS d
+              ON drs.database_id = d.database_id
+            WHERE d.name = 'CTInvTracker'
+              AND drs.is_local = 1;
+            "
+
+          if (-not $existing) {
+            Invoke-Sqlcmd `
+              -ServerInstance localhost `
+              -QueryTimeout 0 `
+              -Query "
+              ALTER DATABASE [CTInvTracker]
+              SET HADR AVAILABILITY GROUP = [CTInventoryAG];
+              "
+
+            $Ansible.Changed = $true
+          }
+          else {
+            $Ansible.Changed = $false
+          }

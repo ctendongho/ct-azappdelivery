@@ -1,0 +1,81 @@
+---
+- name: Back up CTInventoryTracker on primary
+  hosts: ct-azappsql01
+  gather_facts: false
+
+  tasks:
+    - name: Create backup folder
+      ansible.windows.win_file:
+        path: C:\SQLBackups
+        state: directory
+
+    - name: Set FULL recovery and take backups
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = "Stop"
+
+          Invoke-Sqlcmd -ServerInstance localhost -Query "
+          ALTER DATABASE [CTInventoryTracker] SET RECOVERY FULL;
+
+          BACKUP DATABASE [CTInventoryTracker]
+          TO DISK = N'C:\SQLBackups\CTInventoryTracker_full.bak'
+          WITH INIT, COMPRESSION, CHECKSUM;
+
+          BACKUP LOG [CTInventoryTracker]
+          TO DISK = N'C:\SQLBackups\CTInventoryTracker_log.trn'
+          WITH INIT, COMPRESSION, CHECKSUM;
+          "
+
+- name: Prepare secondary and restore backups
+  hosts: ct-azappsql02
+  gather_facts: false
+
+  vars:
+    ansible_become_password: "{{ vault_domain_admin_password }}"
+
+  tasks:
+    - name: Create backup folder
+      ansible.windows.win_file:
+        path: C:\SQLBackups
+        state: directory
+
+    - name: Copy full backup from SQL01
+      ansible.windows.win_copy:
+        src: '\\ct-azappsql01\c$\SQLBackups\CTInventoryTracker_full.bak'
+        dest: C:\SQLBackups\CTInventoryTracker_full.bak
+        remote_src: true
+      become: true
+      become_method: runas
+      become_user: "CTINV\\azureadmin"
+
+    - name: Copy log backup from SQL01
+      ansible.windows.win_copy:
+        src: '\\ct-azappsql01\c$\SQLBackups\CTInventoryTracker_log.trn'
+        dest: C:\SQLBackups\CTInventoryTracker_log.trn
+        remote_src: true
+      become: true
+      become_method: runas
+      become_user: "CTINV\\azureadmin"
+
+    - name: Restore database with NORECOVERY
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = "Stop"
+
+          Invoke-Sqlcmd -ServerInstance localhost -Query "
+          IF DB_ID('CTInventoryTracker') IS NOT NULL
+          BEGIN
+              ALTER DATABASE [CTInventoryTracker]
+              SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+
+              DROP DATABASE [CTInventoryTracker];
+          END
+
+          RESTORE DATABASE [CTInventoryTracker]
+          FROM DISK = N'C:\SQLBackups\CTInventoryTracker_full.bak'
+          WITH NORECOVERY, REPLACE, CHECKSUM;
+
+          RESTORE LOG [CTInventoryTracker]
+          FROM DISK = N'C:\SQLBackups\CTInventoryTracker_log.trn'
+          WITH NORECOVERY, CHECKSUM;
+          "

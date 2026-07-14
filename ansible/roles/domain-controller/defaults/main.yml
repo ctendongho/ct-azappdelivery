@@ -1,0 +1,2 @@
+---
+ad_safe_mode_password: "{{ vault_ad_safe_mode_password }}"

@@ -1,0 +1,146 @@
+---
+- name: Enable Mixed Mode and restart SQL02 first
+  hosts: ct-azappsql02
+  gather_facts: false
+
+  tasks:
+    - name: Enable SQL Server Mixed Mode authentication
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = "Stop"
+
+          $registryPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL16.MSSQLSERVER\MSSQLServer"
+          $currentMode = (Get-ItemProperty -Path $registryPath -Name LoginMode).LoginMode
+
+          if ($currentMode -ne 2) {
+              Set-ItemProperty -Path $registryPath -Name LoginMode -Value 2
+              $Ansible.Changed = $true
+          }
+          else {
+              $Ansible.Changed = $false
+          }
+      register: mixed_mode
+
+    - name: Stop SQL Server Agent before restarting SQL Server
+      ansible.windows.win_service:
+        name: SQLSERVERAGENT
+        state: stopped
+      when: mixed_mode.changed
+
+    - name: Restart SQL Server service
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = "Stop"
+          Restart-Service -Name MSSQLSERVER -Force
+          $Ansible.Changed = $true
+      when: mixed_mode.changed
+
+    - name: Wait for SQL Server to become available
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = "Stop"
+
+          $timeout = (Get-Date).AddMinutes(5)
+
+          do {
+              try {
+                  Invoke-Sqlcmd `
+                    -ServerInstance localhost `
+                    -Query "SELECT 1;" `
+                    -QueryTimeout 5 `
+                    -ErrorAction Stop | Out-Null
+
+                  $ready = $true
+              }
+              catch {
+                  $ready = $false
+                  Start-Sleep -Seconds 10
+              }
+          }
+          until ($ready -or (Get-Date) -gt $timeout)
+
+          if (-not $ready) {
+              throw "SQL Server did not become available within five minutes."
+          }
+
+          $Ansible.Changed = $false
+      when: mixed_mode.changed
+
+    - name: Ensure SQL Server Agent is automatic and running
+      ansible.windows.win_service:
+        name: SQLSERVERAGENT
+        start_mode: auto
+        state: started
+
+- name: Enable Mixed Mode and restart SQL01
+  hosts: ct-azappsql01
+  gather_facts: false
+
+  tasks:
+    - name: Enable SQL Server Mixed Mode authentication
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = "Stop"
+
+          $registryPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL16.MSSQLSERVER\MSSQLServer"
+          $currentMode = (Get-ItemProperty -Path $registryPath -Name LoginMode).LoginMode
+
+          if ($currentMode -ne 2) {
+              Set-ItemProperty -Path $registryPath -Name LoginMode -Value 2
+              $Ansible.Changed = $true
+          }
+          else {
+              $Ansible.Changed = $false
+          }
+      register: mixed_mode
+
+    - name: Stop SQL Server Agent before restarting SQL Server
+      ansible.windows.win_service:
+        name: SQLSERVERAGENT
+        state: stopped
+      when: mixed_mode.changed
+
+    - name: Restart SQL Server service
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = "Stop"
+          Restart-Service -Name MSSQLSERVER -Force
+          $Ansible.Changed = $true
+      when: mixed_mode.changed
+
+    - name: Wait for SQL Server to become available
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = "Stop"
+
+          $timeout = (Get-Date).AddMinutes(5)
+
+          do {
+              try {
+                  Invoke-Sqlcmd `
+                    -ServerInstance localhost `
+                    -Query "SELECT 1;" `
+                    -QueryTimeout 5 `
+                    -ErrorAction Stop | Out-Null
+
+                  $ready = $true
+              }
+              catch {
+                  $ready = $false
+                  Start-Sleep -Seconds 10
+              }
+          }
+          until ($ready -or (Get-Date) -gt $timeout)
+
+          if (-not $ready) {
+              throw "SQL Server did not become available within five minutes."
+          }
+
+          $Ansible.Changed = $false
+      when: mixed_mode.changed
+
+    - name: Ensure SQL Server Agent is automatic and running
+      ansible.windows.win_service:
+        name: SQLSERVERAGENT
+        start_mode: auto
+        state: started

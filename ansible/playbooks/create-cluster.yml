@@ -1,0 +1,25 @@
+---
+- name: Create Windows Server Failover Cluster
+  hosts: ct-azappsql01
+  gather_facts: false
+
+  vars:
+    ansible_become_password: "{{ vault_domain_admin_password }}"
+
+  tasks:
+
+    - name: Create Windows Failover Cluster
+      ansible.windows.win_powershell:
+        script: |
+          if (-not (Get-Cluster -ErrorAction SilentlyContinue)) {
+
+              New-Cluster `
+                -Name CTSQLCLUSTER `
+                -Node ct-azappsql01,ct-azappsql02 `
+                -StaticAddress 10.10.21.100 `
+                -NoStorage
+
+          }
+      become: true
+      become_method: runas
+      become_user: "CTINV\\azureadmin"

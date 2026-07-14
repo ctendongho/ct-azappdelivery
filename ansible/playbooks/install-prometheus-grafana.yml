@@ -1,0 +1,93 @@
+---
+- name: Install Prometheus and Grafana
+  hosts: monitoring_servers
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install required packages
+      ansible.builtin.apt:
+        name:
+          - prometheus
+          - apt-transport-https
+          - software-properties-common
+          - wget
+          - gpg
+        state: present
+
+    - name: Create Grafana keyring directory
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+
+    - name: Download Grafana GPG key
+      ansible.builtin.get_url:
+        url: https://apt.grafana.com/gpg.key
+        dest: /tmp/grafana.gpg.key
+        mode: "0644"
+
+    - name: Add Grafana GPG key
+      ansible.builtin.shell: |
+        gpg --dearmor \
+          --yes \
+          --output /etc/apt/keyrings/grafana.gpg \
+          /tmp/grafana.gpg.key
+      args:
+        creates: /etc/apt/keyrings/grafana.gpg
+
+    - name: Add Grafana repository
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main"
+        filename: grafana
+        state: present
+
+    - name: Update apt cache after adding Grafana repository
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Install Grafana
+      ansible.builtin.apt:
+        name: grafana
+        state: present
+
+    - name: Enable and start Prometheus
+      ansible.builtin.systemd:
+        name: prometheus
+        enabled: true
+        state: started
+
+    - name: Enable and start Grafana
+      ansible.builtin.systemd:
+        name: grafana-server
+        enabled: true
+        state: started
+
+    - name: Check Prometheus service
+      ansible.builtin.uri:
+        url: http://localhost:9090/-/healthy
+        status_code: 200
+      register: prometheus_health
+      retries: 10
+      delay: 5
+      until: prometheus_health.status == 200
+
+    - name: Check Grafana service
+      ansible.builtin.uri:
+        url: http://localhost:3000/api/health
+        status_code: 200
+      register: grafana_health
+      retries: 10
+      delay: 5
+      until: grafana_health.status == 200
+
+    - name: Display monitoring service status
+      ansible.builtin.debug:
+        msg:
+          - "Prometheus is healthy on port 9090"
+          - "Grafana is healthy on port 3000"

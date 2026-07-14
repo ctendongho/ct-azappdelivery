@@ -1,0 +1,136 @@
+---
+- name: Provision CT Infrastructure Monitoring dashboard
+  hosts: monitoring_servers
+  become: true
+  gather_facts: false
+
+  vars:
+    grafana_datasource_directory: /etc/grafana/provisioning/datasources
+    grafana_provider_directory: /etc/grafana/provisioning/dashboards
+    grafana_dashboard_directory: /var/lib/grafana/dashboards
+    dashboard_generator_path: /usr/local/bin/generate-ct-dashboard.py
+    dashboard_file: /var/lib/grafana/dashboards/ct-infrastructure-monitoring.json
+
+  tasks:
+    - name: Create Grafana directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: grafana
+        group: grafana
+        mode: "0755"
+      loop:
+        - "{{ grafana_datasource_directory }}"
+        - "{{ grafana_provider_directory }}"
+        - "{{ grafana_dashboard_directory }}"
+
+    - name: Provision Prometheus data source
+      ansible.builtin.copy:
+        dest: "{{ grafana_datasource_directory }}/prometheus.yml"
+        owner: grafana
+        group: grafana
+        mode: "0644"
+        content: |
+          apiVersion: 1
+
+          datasources:
+            - name: Prometheus
+              uid: prometheus
+              type: prometheus
+              access: proxy
+              url: http://localhost:9090
+              isDefault: true
+              editable: true
+              jsonData:
+                timeInterval: 15s
+                httpMethod: POST
+      notify: Restart Grafana
+
+    - name: Provision Grafana dashboard provider
+      ansible.builtin.copy:
+        dest: "{{ grafana_provider_directory }}/ct-infrastructure.yml"
+        owner: grafana
+        group: grafana
+        mode: "0644"
+        content: |
+          apiVersion: 1
+
+          providers:
+            - name: CT Infrastructure
+              orgId: 1
+              folder: CT Infrastructure
+              type: file
+              disableDeletion: false
+              updateIntervalSeconds: 30
+              allowUiUpdates: true
+              options:
+                path: /var/lib/grafana/dashboards
+      notify: Restart Grafana
+
+    - name: Remove obsolete Grafana dashboards
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ grafana_dashboard_directory }}/ct-azure-monitoring.json"
+        - "{{ grafana_dashboard_directory }}/ct-infrastructure-monitoring.json"
+
+    - name: Copy dashboard generator
+      ansible.builtin.copy:
+        src: "../files/grafana/generate-dashboard.py"
+        dest: "{{ dashboard_generator_path }}"
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Generate CT Infrastructure Monitoring dashboard
+      ansible.builtin.command:
+        cmd: "python3 {{ dashboard_generator_path }}"
+      changed_when: true
+      notify: Restart Grafana
+
+    - name: Set dashboard permissions
+      ansible.builtin.file:
+        path: "{{ dashboard_file }}"
+        owner: grafana
+        group: grafana
+        mode: "0644"
+
+    - name: Validate generated dashboard JSON
+      ansible.builtin.command:
+        cmd: "python3 -m json.tool {{ dashboard_file }}"
+      changed_when: false
+
+    - name: Apply Grafana configuration
+      ansible.builtin.meta: flush_handlers
+
+    - name: Wait for Grafana
+      ansible.builtin.uri:
+        url: http://localhost:3000/api/health
+        status_code: 200
+      register: grafana_health
+      retries: 12
+      delay: 5
+      until: grafana_health.status == 200
+
+    - name: Confirm dashboard exists
+      ansible.builtin.stat:
+        path: "{{ dashboard_file }}"
+      register: dashboard_status
+
+    - name: Display result
+      ansible.builtin.debug:
+        msg:
+          - "Grafana is healthy."
+          - "Dashboard: CT Infrastructure Monitoring"
+          - "Folder: CT Infrastructure"
+          - "Dashboard exists: {{ dashboard_status.stat.exists }}"
+          - "Windows memory metrics have been corrected."
+          - "Device names are shown in the panel titles and legends."
+
+  handlers:
+    - name: Restart Grafana
+      ansible.builtin.systemd:
+        name: grafana-server
+        state: restarted
+        enabled: true

@@ -1,0 +1,98 @@
+---
+- name: Prepare CTInvTracker on primary
+  hosts: ct-azappsql01
+  gather_facts: false
+
+  tasks:
+    - name: Set FULL recovery and take full and log backups
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = "Stop"
+
+          Invoke-Sqlcmd `
+            -ServerInstance localhost `
+            -QueryTimeout 0 `
+            -Query "
+            ALTER DATABASE [CTInvTracker] SET RECOVERY FULL;
+
+            BACKUP DATABASE [CTInvTracker]
+            TO DISK = N'C:\SQLBackups\CTInvTracker_ag_full.bak'
+            WITH INIT, COMPRESSION, CHECKSUM, STATS = 10;
+
+            BACKUP LOG [CTInvTracker]
+            TO DISK = N'C:\SQLBackups\CTInvTracker_ag_log.trn'
+            WITH INIT, COMPRESSION, CHECKSUM, STATS = 10;
+            "
+
+- name: Restore CTInvTracker on secondary
+  hosts: ct-azappsql02
+  gather_facts: false
+
+  vars:
+    ansible_become_password: "{{ vault_domain_admin_password }}"
+
+  tasks:
+    - name: Ensure backup folder exists
+      ansible.windows.win_file:
+        path: C:\SQLBackups
+        state: directory
+
+    - name: Copy full backup from SQL01
+      ansible.windows.win_copy:
+        src: '\\ct-azappsql01\c$\SQLBackups\CTInvTracker_ag_full.bak'
+        dest: C:\SQLBackups\CTInvTracker_ag_full.bak
+        remote_src: true
+      become: true
+      become_method: runas
+      become_user: "CTINV\\azureadmin"
+
+    - name: Copy log backup from SQL01
+      ansible.windows.win_copy:
+        src: '\\ct-azappsql01\c$\SQLBackups\CTInvTracker_ag_log.trn'
+        dest: C:\SQLBackups\CTInvTracker_ag_log.trn
+        remote_src: true
+      become: true
+      become_method: runas
+      become_user: "CTINV\\azureadmin"
+
+    - name: Restore full and log backups with NORECOVERY
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = "Stop"
+
+          $dataPath = Invoke-Sqlcmd -ServerInstance localhost -Query "
+          SELECT SERVERPROPERTY('InstanceDefaultDataPath') AS DataPath;
+          "
+
+          $logPath = Invoke-Sqlcmd -ServerInstance localhost -Query "
+          SELECT SERVERPROPERTY('InstanceDefaultLogPath') AS LogPath;
+          "
+
+          Invoke-Sqlcmd `
+            -ServerInstance localhost `
+            -QueryTimeout 0 `
+            -Query "
+            IF DB_ID('CTInvTracker') IS NOT NULL
+            BEGIN
+                ALTER DATABASE [CTInvTracker]
+                SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+
+                DROP DATABASE [CTInvTracker];
+            END;
+
+            RESTORE DATABASE [CTInvTracker]
+            FROM DISK = N'C:\SQLBackups\CTInvTracker_ag_full.bak'
+            WITH
+                MOVE N'AdventureWorks2019'
+                  TO N'$($dataPath.DataPath)CTInvTracker.mdf',
+                MOVE N'AdventureWorks2019_log'
+                  TO N'$($logPath.LogPath)CTInvTracker_log.ldf',
+                NORECOVERY,
+                REPLACE,
+                CHECKSUM,
+                STATS = 10;
+
+            RESTORE LOG [CTInvTracker]
+            FROM DISK = N'C:\SQLBackups\CTInvTracker_ag_log.trn'
+            WITH NORECOVERY, CHECKSUM, STATS = 10;
+            "

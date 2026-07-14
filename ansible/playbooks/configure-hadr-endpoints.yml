@@ -1,0 +1,42 @@
+---
+- name: Configure SQL Server HADR endpoints
+  hosts: sql_servers
+  gather_facts: false
+
+  tasks:
+    - name: Create and start HADR endpoint
+      ansible.windows.win_powershell:
+        script: |
+          $existing = Invoke-Sqlcmd -ServerInstance localhost -Query "
+          SELECT state_desc
+          FROM sys.database_mirroring_endpoints
+          WHERE name = 'Hadr_endpoint';
+          "
+
+          if (-not $existing) {
+              Invoke-Sqlcmd -ServerInstance localhost -Query "
+              CREATE ENDPOINT [Hadr_endpoint]
+              STATE = STARTED
+              AS TCP (
+                  LISTENER_PORT = 5022,
+                  LISTENER_IP = ALL
+              )
+              FOR DATABASE_MIRRORING (
+                  ROLE = ALL,
+                  AUTHENTICATION = WINDOWS NEGOTIATE,
+                  ENCRYPTION = REQUIRED ALGORITHM AES
+              );
+              "
+
+              $Ansible.Changed = $true
+          }
+          elseif ($existing.state_desc -ne 'STARTED') {
+              Invoke-Sqlcmd -ServerInstance localhost -Query "
+              ALTER ENDPOINT [Hadr_endpoint] STATE = STARTED;
+              "
+
+              $Ansible.Changed = $true
+          }
+          else {
+              $Ansible.Changed = $false
+          }

@@ -1,0 +1,18 @@
+---
+- name: Validate SQL cluster nodes
+  hosts: ct-azappsql01
+  gather_facts: false
+
+  vars:
+    ansible_become_password: "{{ vault_domain_admin_password }}"
+
+  tasks:
+    - name: Run cluster validation as domain administrator
+      ansible.windows.win_powershell:
+        script: |
+          Test-Cluster `
+            -Node ct-azappsql01,ct-azappsql02 `
+            -Include "Inventory","Network","System Configuration"
+      become: true
+      become_method: runas
+      become_user: "CTINV\\azureadmin"
