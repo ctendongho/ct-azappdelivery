@@ -40,4 +40,10 @@ resource "azurerm_windows_virtual_machine_scale_set" "app" {
   boot_diagnostics {
     storage_account_uri = azurerm_storage_account.main.primary_blob_endpoint
   }
+
+  lifecycle {
+    ignore_changes = [
+      instances
+    ]
+  }
 }
