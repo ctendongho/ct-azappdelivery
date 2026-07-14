@@ -1,0 +1,168 @@
+
+Report Summary
+
+┌───────────────────────────────────────────────────┬───────────┬─────────────────┬─────────┬───────────────────┐
+│                      Target                       │   Type    │ Vulnerabilities │ Secrets │ Misconfigurations │
+├───────────────────────────────────────────────────┼───────────┼─────────────────┼─────────┼───────────────────┤
+│ terraform                                         │ terraform │        -        │    -    │         0         │
+├───────────────────────────────────────────────────┼───────────┼─────────────────┼─────────┼───────────────────┤
+│ terraform/key-vault.tf                            │ terraform │        -        │    -    │         1         │
+├───────────────────────────────────────────────────┼───────────┼─────────────────┼─────────┼───────────────────┤
+│ terraform/management-vm.tf                        │ terraform │        -        │    -    │         0         │
+├───────────────────────────────────────────────────┼───────────┼─────────────────┼─────────┼───────────────────┤
+│ terraform/network-security.tf                     │ terraform │        -        │    -    │         2         │
+├───────────────────────────────────────────────────┼───────────┼─────────────────┼─────────┼───────────────────┤
+│ terraform/sql.tf                                  │ terraform │        -        │    -    │         0         │
+├───────────────────────────────────────────────────┼───────────┼─────────────────┼─────────┼───────────────────┤
+│ terraform/storage.tf                              │ terraform │        -        │    -    │         1         │
+├───────────────────────────────────────────────────┼───────────┼─────────────────┼─────────┼───────────────────┤
+│ terraform/terraform.tfstate.backup.before-destroy │   text    │        -        │    3    │         -         │
+└───────────────────────────────────────────────────┴───────────┴─────────────────┴─────────┴───────────────────┘
+Legend:
+- '-': Not scanned
+- '0': Clean (no security findings detected)
+
+
+terraform/key-vault.tf (terraform)
+==================================
+Tests: 1 (SUCCESSES: 0, FAILURES: 1)
+Failures: 1 (HIGH: 0, CRITICAL: 1)
+
+AZU-0013 (CRITICAL): Vault network ACL does not block access by default.
+══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+Network ACLs allow you to reduce your exposure to risk by limiting what can access your key vault.
+
+The default action of the Network ACL should be set to deny for when IPs are not matched. Azure services can be allowed to bypass.
+
+
+See https://avd.aquasec.com/misconfig/azu-0013
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ terraform/key-vault.tf:3-19
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   3 ┌ resource "azurerm_key_vault" "main" {
+   4 │   name                = "ctinvtracker-kv-3729"
+   5 │   location            = azurerm_resource_group.main.location
+   6 │   resource_group_name = azurerm_resource_group.main.name
+   7 │   tenant_id           = data.azurerm_client_config.current.tenant_id
+   8 │   sku_name            = "standard"
+   9 │ 
+  10 │   rbac_authorization_enabled    = true
+  11 └   purge_protection_enabled      = true
+  ..   
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+terraform/network-security.tf (terraform)
+=========================================
+Tests: 2 (SUCCESSES: 0, FAILURES: 2)
+Failures: 2 (HIGH: 0, CRITICAL: 2)
+
+AZU-0047 (CRITICAL): Security group rule allows unrestricted ingress from any IP address.
+══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+Opening up ports to allow connections from the public internet is generally to be avoided. You should restrict access to IP addresses or ranges that are explicitly required where possible.
+
+
+See https://avd.aquasec.com/misconfig/azu-0047
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ terraform/network-security.tf:85
+   via terraform/network-security.tf:77-89 (azurerm_network_security_rule.allow_http)
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  77   resource "azurerm_network_security_rule" "allow_http" {
+  ..   
+  85 [   source_address_prefix       = "*"
+  ..   
+  89   }
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+AZU-0047 (CRITICAL): Security group rule allows unrestricted ingress from any IP address.
+══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+Opening up ports to allow connections from the public internet is generally to be avoided. You should restrict access to IP addresses or ranges that are explicitly required where possible.
+
+
+See https://avd.aquasec.com/misconfig/azu-0047
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ terraform/network-security.tf:99
+   via terraform/network-security.tf:91-103 (azurerm_network_security_rule.allow_https)
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  91   resource "azurerm_network_security_rule" "allow_https" {
+  ..   
+  99 [   source_address_prefix       = "*"
+ ...   
+ 103   }
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+terraform/storage.tf (terraform)
+================================
+Tests: 1 (SUCCESSES: 0, FAILURES: 1)
+Failures: 1 (HIGH: 0, CRITICAL: 1)
+
+AZU-0012 (CRITICAL): No network rules defined and default action allows access.
+══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+The default_action for network rules should come into effect when no other rules are matched.
+The default action should be set to Deny.
+
+
+See https://avd.aquasec.com/misconfig/azu-0012
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ terraform/storage.tf:7-15
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   7 ┌ resource "azurerm_storage_account" "main" {
+   8 │   name                = "ctazappdiag${random_string.storage.result}"
+   9 │   resource_group_name = azurerm_resource_group.main.name
+  10 │   location            = azurerm_resource_group.main.location
+  11 │ 
+  12 │   account_tier             = "Standard"
+  13 │   account_replication_type = "LRS"
+  14 │   min_tls_version          = "TLS1_2"
+  15 └ }
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+terraform/terraform.tfstate.backup.before-destroy (secrets)
+===========================================================
+Total: 3 (HIGH: 0, CRITICAL: 3)
+
+CRITICAL: Azure (azure-storage-account-key)
+══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+Azure Storage Account Key
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ terraform/terraform.tfstate.backup.before-destroy:820 (offset: 34539 bytes)
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 818               "nfsv3_enabled": false,
+ 819               "primary_access_key": "X+7GACVvQXhigAK8UM1jeebq4ty0ESyNbn7QH/feswK8dyFH4hZZjeTtQXuHryK2j
+ 820 [ =ctazappdiagmf9npw;AccountKey=****************************************************************************************",
+ 821               "primary_blob_endpoint": "https://ctazappdiagmf9npw.blob.core.windows.net/",
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+CRITICAL: Azure (azure-storage-account-key)
+══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+Azure Storage Account Key
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ terraform/terraform.tfstate.backup.before-destroy:827 (offset: 35103 bytes)
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 825               "primary_blob_microsoft_endpoint": "",
+ 826               "primary_blob_microsoft_host": "",
+ 827 [ =ctazappdiagmf9npw;AccountKey=****************************************************************************************;EndpointSuffix=core
+ 828               "primary_dfs_endpoint": "https://ctazappdiagmf9npw.dfs.core.windows.net/",
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+CRITICAL: Azure (azure-storage-account-key)
+══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+Azure Storage Account Key
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ terraform/terraform.tfstate.backup.before-destroy:899 (offset: 38636 bytes)
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 897               "secondary_blob_microsoft_endpoint": "",
+ 898               "secondary_blob_microsoft_host": "",
+ 899 [ =ctazappdiagmf9npw;AccountKey=****************************************************************************************;EndpointSuffix=core
+ 900               "secondary_dfs_endpoint": "",
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
