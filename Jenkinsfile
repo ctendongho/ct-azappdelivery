@@ -261,7 +261,8 @@ pipeline {
                         variable: 'ANSIBLE_VAULT_PASSWORD'
                     )
                 ]) {
-                    sh '''
+                    sh '''#!/usr/bin/env bash
+
                         set +x
                         set -uo pipefail
 

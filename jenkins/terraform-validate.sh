@@ -14,7 +14,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-cp "${SOURCE_DIR}/terraform.tfvars" \
+cp "${SOURCE_DIR}/terraform.tfvars.example" \
    "${WORK_DIR}/terraform.tfvars"
 
 cp "${SOURCE_DIR}/terraform.tfstate" \
@@ -33,10 +33,11 @@ terraform init \
 echo "Validating Terraform..."
 terraform validate
 
-echo "Creating read-only Terraform plan..."
+echo "Creating read-only Terraform validation plan..."
 terraform plan \
   -input=false \
   -refresh=false \
+  -lock=false \
   -out=tfplan
 
 terraform show \
