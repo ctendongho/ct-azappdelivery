@@ -307,6 +307,75 @@
           $Ansible.Changed = $true
       no_log: true
 
+    - name: Remove IIS technology disclosure headers
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = 'Stop'
+
+          $webConfigPath = '{{ app_directory }}\web.config'
+
+          if (-not (Test-Path $webConfigPath)) {
+              throw "web.config was not found at $webConfigPath."
+          }
+
+          [xml]$webConfig = Get-Content -Path $webConfigPath
+
+          $systemWebServer = $webConfig.SelectSingleNode(
+              '//system.webServer'
+          )
+
+          if ($null -eq $systemWebServer) {
+              throw 'system.webServer section was not found.'
+          }
+
+          $httpProtocol = $systemWebServer.SelectSingleNode(
+              'httpProtocol'
+          )
+
+          if ($null -eq $httpProtocol) {
+              $httpProtocol = $webConfig.CreateElement(
+                  'httpProtocol'
+              )
+
+              $systemWebServer.AppendChild(
+                  $httpProtocol
+              ) | Out-Null
+          }
+
+          $customHeaders = $httpProtocol.SelectSingleNode(
+              'customHeaders'
+          )
+
+          if ($null -eq $customHeaders) {
+              $customHeaders = $webConfig.CreateElement(
+                  'customHeaders'
+              )
+
+              $httpProtocol.AppendChild(
+                  $customHeaders
+              ) | Out-Null
+          }
+
+          $existingRemove = $customHeaders.SelectSingleNode(
+              "remove[@name='X-Powered-By']"
+          )
+
+          if ($null -eq $existingRemove) {
+              $removeHeader = $webConfig.CreateElement('remove')
+              $removeHeader.SetAttribute(
+                  'name',
+                  'X-Powered-By'
+              )
+
+              $customHeaders.AppendChild(
+                  $removeHeader
+              ) | Out-Null
+          }
+
+          $webConfig.Save($webConfigPath)
+
+          $Ansible.Changed = $true
+
     - name: Configure IIS application pool
       community.windows.win_iis_webapppool:
         name: "{{ app_pool_name }}"
