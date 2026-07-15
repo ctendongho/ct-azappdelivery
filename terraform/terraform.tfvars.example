@@ -27,7 +27,7 @@ db_subnet1_prefix = ["10.10.21.0/24"]
 db_subnet2_name   = "ct-dbsnet02"
 db_subnet2_prefix = ["10.10.22.0/24"]
 
-admin_public_ip = "20.118.28.9/32"
+admin_public_ip = "YOUR_PUBLIC_IP/32"
 
 management_public_ip_name = "ct-azappmain-pip"
 managed_identity_name     = "ct-azapp-mi"
@@ -36,21 +36,21 @@ managed_identity_name     = "ct-azapp-mi"
 vmss_name           = "ct-azappvmss"
 vmss_instance_count = 2
 vmss_vm_size        = "Standard_D2s_v3"
-vmss_admin_username = "charlo"
-vmss_admin_password = "CtVmss2026!"
+vmss_admin_username = "YOUR_USERNAME"
+vmss_admin_password = "REPLACE_WITH_STRONG_PASSWORD"
 
 # Domain Controller
 dc_vm_name        = "ct-azappdc01"
 dc_vm_size        = "Standard_D2s_v3"
-dc_admin_username = "azureadmin"
-dc_admin_password = "CtDc2026!"
+dc_admin_username = "YOUR_USERNAME"
+dc_admin_password = "REPLACE_WITH_STRONG_PASSWORD"
 
 # SQL Server VMs
 sql_vm1_name       = "ct-azappsql01"
 sql_vm2_name       = "ct-azappsql02"
 sql_vm_size        = "Standard_D2s_v3"
-sql_admin_username = "azureadmin"
-sql_admin_password = "CtSql2026!"
+sql_admin_username = "YOUR_USERNAME"
+sql_admin_password = "REPLACE_WITH_STRONG_PASSWORD"
 
 # VPN root certificate
 root_certificate = "PASTE_BASE64_ROOT_CERTIFICATE_HERE"
