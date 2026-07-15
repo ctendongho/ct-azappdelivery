@@ -1,800 +1,802 @@
 # End-to-End Enterprise Application Delivery on Microsoft Azure using SQL Server Always On Availability Groups
 
-![Microsoft Azure](https://img.shields.io/badge/Microsoft_Azure-0078D4?logo=microsoftazure&logoColor=white)
-![Terraform](https://img.shields.io/badge/Terraform-844FBA?logo=terraform&logoColor=white)
-![Ansible](https://img.shields.io/badge/Ansible-EE0000?logo=ansible&logoColor=white)
-![Jenkins](https://img.shields.io/badge/Jenkins-D24939?logo=jenkins&logoColor=white)
-![SQL Server](https://img.shields.io/badge/SQL_Server-CC2927?logo=microsoftsqlserver&logoColor=white)
-![.NET 8](https://img.shields.io/badge/.NET_8-512BD4?logo=dotnet&logoColor=white)
-![SonarQube](https://img.shields.io/badge/SonarQube-4E9BCD?logo=sonarqube&logoColor=white)
-![Trivy](https://img.shields.io/badge/Trivy-1904DA?logo=aqua&logoColor=white)
-![OWASP ZAP](https://img.shields.io/badge/OWASP_ZAP-00549E?logo=owasp&logoColor=white)
-![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?logo=prometheus&logoColor=white)
-![Grafana](https://img.shields.io/badge/Grafana-F46800?logo=grafana&logoColor=white)
-
-An end-to-end enterprise application delivery platform built on Microsoft Azure using Infrastructure as Code, configuration management, automated CI/CD, application security scanning, centralized secrets management, monitoring, and SQL Server high availability.
-
-The platform deploys an ASP.NET Core Inventory Tracker application across two Windows IIS application instances in an Azure Virtual Machine Scale Set. The database layer uses two SQL Server nodes configured in a SQL Server Always On Availability Group with a Distributed Network Name listener. Jenkins, Terraform, Ansible, SonarQube, Trivy, OWASP ZAP, Prometheus, Grafana, Azure Application Gateway, Azure Key Vault, Azure Monitor, and Application Insights are integrated to provide automated delivery, validation, security, observability, scalability, and resilience.
+![Azure](https://img.shields.io/badge/Microsoft%20Azure-Cloud-blue?logo=microsoftazure)
+![Terraform](https://img.shields.io/badge/Terraform-IaC-623CE4?logo=terraform)
+![Ansible](https://img.shields.io/badge/Ansible-Automation-EE0000?logo=ansible)
+![Jenkins](https://img.shields.io/badge/Jenkins-CI%2FCD-D24939?logo=jenkins)
+![SQL Server](https://img.shields.io/badge/SQL%20Server-Always%20On-red?logo=microsoftsqlserver)
+![Grafana](https://img.shields.io/badge/Grafana-Monitoring-orange?logo=grafana)
+![Prometheus](https://img.shields.io/badge/Prometheus-Metrics-E6522C?logo=prometheus)
+![SonarQube](https://img.shields.io/badge/SonarQube-Code%20Quality-4E9BCD?logo=sonarqube)
+![Trivy](https://img.shields.io/badge/Trivy-Security-1904DA)
+![OWASP ZAP](https://img.shields.io/badge/OWASP-ZAP-green)
 
 ---
 
-## Demo
+# Project Overview
 
-[https://ctinventorytracker.com](https://ctinventorytracker.com)
+This project demonstrates the design, deployment, and operation of a highly available enterprise application platform on Microsoft Azure.
 
----
+The platform hosts a .NET Inventory Tracker application running on a Windows Virtual Machine Scale Set behind an Azure Application Gateway. SQL Server Always On Availability Groups provide database high availability, while Terraform and Ansible automate infrastructure provisioning and server configuration. A Jenkins Multi-Branch CI/CD pipeline continuously validates infrastructure, builds the application, performs code quality and security scans, deploys the application, and verifies the health of the platform before completing each deployment.
 
-## Solution Architecture
-
-The solution is deployed primarily in the `ct-azapps-rg` resource group in the **Central US** Azure region.
-
-The application workload is hosted inside `ct-azappvnet` using separate subnets for public services, the application tier, Active Directory, and SQL Server. Azure Application Gateway receives public HTTPS traffic and routes healthy requests to the two IIS application instances in `ct-azappvmss`.
-
-The database tier consists of `ct-azappsql01` and `ct-azappsql02`, configured as replicas in the `CTInventoryAG` SQL Server Always On Availability Group. The application connects through the Distributed Network Name listener on TCP port `14330`.
-
-The management and DevSecOps layer includes Jenkins, Terraform, Ansible, SonarQube, Trivy, OWASP ZAP, Prometheus, Grafana, Docker, Azure Monitor, Application Insights, Azure Key Vault, and managed identity integration.
-
-![CT Azure Application Delivery Architecture](docs/architecture/Architectural-Diagram.png)
+The project combines Infrastructure as Code, Configuration Management, Continuous Integration, Continuous Delivery, Monitoring, Security, and High Availability into a single enterprise deployment platform that closely resembles real-world production environments.
 
 ---
 
-## Technologies Used
+# Business Problem
 
-| Category | Technology |
-|---|---|
-| Cloud Platform | Microsoft Azure |
-| Azure Region | Central US |
-| Resource Group | `ct-azapps-rg` |
-| Infrastructure as Code | Terraform |
-| Configuration Management | Ansible |
-| CI/CD | Jenkins Multibranch Pipeline |
-| Source Control | Git and GitHub |
-| Application Framework | ASP.NET Core 8 |
-| Web Server | Microsoft IIS |
-| Application Compute | Azure Windows Virtual Machine Scale Set |
-| Application Scale Set | `ct-azappvmss` |
-| Application Instances | `azapp000000` and `azapp000001` |
-| Application Gateway | `ct-appgateway` |
-| Virtual Network | `ct-azappvnet` |
-| Network Security | Azure Network Security Groups |
-| Identity Services | Active Directory Domain Services |
-| Domain Controller | `ct-azappdc01` |
-| Database Platform | Microsoft SQL Server |
-| SQL Server Nodes | `ct-azappsql01` and `ct-azappsql02` |
-| Database High Availability | SQL Server Always On Availability Groups |
-| Availability Group | `CTInventoryAG` |
-| SQL Connectivity | Distributed Network Name Listener |
-| SQL Listener Port | `14330` |
-| Secrets Management | Azure Key Vault |
-| Identity Integration | Azure Managed Identity and RBAC |
-| Application Monitoring | Azure Application Insights |
-| Cloud Monitoring | Azure Monitor |
-| Metrics Collection | Prometheus |
-| Dashboards | Grafana |
-| Static Code Analysis | SonarQube |
-| Dependency and Secret Scanning | Trivy |
-| Dynamic Web Security Testing | OWASP ZAP |
-| Container Runtime | Docker |
-| Automation Languages | Bash, PowerShell, HCL, YAML and Groovy |
+Many organizations still rely on manual deployment processes to provision infrastructure, configure servers, and release applications. While this approach may work for smaller environments, it becomes increasingly difficult to manage as systems grow. Manual deployments often introduce configuration drift, increase the risk of human error, prolong recovery during outages, and make environments difficult to reproduce consistently.
+
+Traditional deployment approaches also tend to separate infrastructure, application delivery, monitoring, and security into disconnected processes. As a result, deployments require significant manual effort, troubleshooting becomes time-consuming, and identifying production issues often takes longer than necessary.
+
+This project addresses these challenges by implementing an automated enterprise application delivery platform that:
+
+- Eliminates manual infrastructure provisioning through Infrastructure as Code.
+- Standardizes server configuration using Ansible.
+- Automates application delivery using Jenkins Multi-Branch Pipelines.
+- Provides database high availability using SQL Server Always On Availability Groups.
+- Protects sensitive configuration through Azure Key Vault.
+- Continuously validates application health after deployment.
+- Integrates code quality, vulnerability scanning, and web application security testing directly into the deployment pipeline.
+- Monitors platform health using Prometheus and Grafana.
+
+The result is a repeatable, secure, highly available, and production-ready deployment platform that significantly reduces operational effort while improving deployment consistency and reliability.
 
 ---
 
-## Key Features
+# Project Objectives
 
-- Provisioned the Azure infrastructure using reusable Terraform configuration.
-- Implemented a segmented Azure network using dedicated public, application, Active Directory, and database subnets.
-- Deployed the Inventory Tracker application to two Windows IIS instances in `ct-azappvmss`.
-- Configured Azure Application Gateway for public HTTPS access, Layer 7 routing, health probes, and backend traffic distribution.
-- Created a dedicated `/health` endpoint for application and gateway health validation.
-- Configured Active Directory Domain Services using `ct-azappdc01`.
-- Deployed SQL Server nodes `ct-azappsql01` and `ct-azappsql02` across separate database subnets.
-- Configured the `CTInventoryAG` SQL Server Always On Availability Group.
-- Implemented a Distributed Network Name listener on port `14330`.
-- Automated Windows Server configuration and application deployment with Ansible.
-- Built a Jenkins multibranch pipeline for the `dev` and `main` branches.
-- Configured full validation and a manual deployment approval gate on `dev`.
-- Configured automatic deployment and production health validation on `main`.
-- Integrated SonarQube static code analysis and Quality Gate enforcement.
-- Integrated Trivy vulnerability, secret, and supported misconfiguration scanning.
-- Performed OWASP ZAP baseline security testing against the public HTTPS endpoint.
-- Stored certificates, credentials, connection strings, and secrets in Azure Key Vault.
-- Used Azure managed identity and RBAC to reduce direct credential use.
-- Collected infrastructure and application metrics with Prometheus.
-- Created Grafana dashboards for platform and service visibility.
-- Integrated Application Insights and Azure Monitor for application and Azure resource monitoring.
-- Added automated post-deployment checks for the website, health endpoint, IIS instances, SQL Server services, Availability Group, DNN listener, Prometheus, Grafana, SonarQube, and Docker.
-- Produced clean health-summary tables in Jenkins after deployment.
+The primary objective of this project was to build a complete enterprise application delivery platform that demonstrates modern DevOps and Cloud Engineering practices on Microsoft Azure.
+
+The platform was designed to achieve the following objectives:
+
+- Provision Azure infrastructure using Terraform.
+- Configure Windows servers automatically with Ansible.
+- Deploy a .NET Inventory Tracker application through Jenkins CI/CD.
+- Implement SQL Server Always On Availability Groups for database high availability.
+- Secure secrets using Azure Key Vault.
+- Perform automated static code analysis with SonarQube.
+- Scan the application for vulnerabilities using Trivy.
+- Perform web application security testing using OWASP ZAP.
+- Monitor the environment using Prometheus and Grafana.
+- Validate platform health automatically after every deployment.
 
 ---
 
-## Repository Structure
+# Solution Overview
 
-```text
-.
-├── ansible/
+The solution consists of several integrated components working together to automate the complete application delivery lifecycle.
+
+Infrastructure is provisioned using Terraform, ensuring every deployment is consistent and repeatable. Once the infrastructure is available, Ansible configures Windows Server, IIS, SQL Server, Active Directory, and the application environment automatically.
+
+Developers commit changes to either the **dev** or **main** branch. Jenkins detects each commit through a Multi-Branch Pipeline and executes the appropriate deployment workflow.
+
+The pipeline performs:
+
+- Terraform validation and planning
+- Ansible validation
+- Application build
+- SonarQube analysis
+- Trivy security scan
+- Application packaging
+- Manual approval (Development)
+- Automated deployment
+- Platform health validation
+
+Following deployment, Jenkins verifies the health of the application, SQL Server Availability Group, DNN listener, IIS, Prometheus, Grafana, and other critical platform components before reporting a successful deployment.
+
+---
+
+# Enterprise Architecture
+
+The following diagram illustrates the complete Azure platform and how each service communicates with the others.
+
+> **Architecture Diagram**
+
+<p align="center">
+<img src="docs/architecture/Architectural-Diagram.png" width="100%">
+</p>
+
+The architecture is designed around security, scalability, automation, and high availability.
+
+User traffic enters through Azure Application Gateway, which provides HTTPS termination and routes requests to the Windows Virtual Machine Scale Set hosting the Inventory Tracker application. The application communicates with SQL Server Always On Availability Groups deployed across two availability zones for database resilience.
+
+A dedicated management virtual machine hosts Jenkins, Terraform, Ansible, SonarQube, Prometheus, Grafana, Docker, and Azure CLI, providing a centralized administration and CI/CD environment.
+
+Azure Key Vault securely stores sensitive configuration while Managed Identity allows Azure resources to authenticate without embedding credentials within the application or deployment scripts.
+
+Monitoring and security are integrated throughout the deployment lifecycle using Prometheus, Grafana, SonarQube, Trivy, and OWASP ZAP.
+
+---
+
+# Technologies Used
+
+| Technology | Purpose in this Project |
+|------------|-------------------------|
+| Microsoft Azure | Cloud platform hosting the entire environment |
+| Terraform | Infrastructure as Code (IaC) |
+| Ansible | Windows Server and application configuration |
+| Jenkins | Multi-Branch Continuous Integration / Continuous Delivery |
+| Git & GitHub | Source control and version management |
+| Azure Application Gateway | HTTPS entry point and Layer 7 load balancing |
+| Azure Virtual Machine Scale Set | Highly available application servers |
+| Windows Server 2022 | Application hosting platform |
+| IIS | Web server hosting the Inventory Tracker application |
+| SQL Server 2022 Enterprise | Relational database engine |
+| SQL Server Always On Availability Groups | Database high availability |
+| Azure Key Vault | Secret and certificate management |
+| Azure Managed Identity | Passwordless authentication |
+| Active Directory Domain Services | Authentication and domain management |
+| SonarQube | Static code quality analysis |
+| Trivy | Vulnerability and secret scanning |
+| OWASP ZAP | Dynamic web application security testing |
+| Prometheus | Metrics collection |
+| Grafana | Monitoring dashboards |
+| Docker | Container runtime used for security tooling |
+| PowerShell | Windows automation |
+| Azure CLI | Azure administration |
+
+---
+
+# Key Features
+
+- Fully automated Infrastructure as Code deployment using Terraform.
+- Automated Windows Server configuration using Ansible.
+- Enterprise Jenkins Multi-Branch CI/CD pipeline.
+- Development and Production deployment workflows.
+- SQL Server Always On Availability Groups with DNN Listener.
+- Highly available Windows Virtual Machine Scale Set.
+- Azure Application Gateway with HTTPS.
+- Azure Key Vault integration.
+- Static code quality analysis using SonarQube.
+- Vulnerability scanning using Trivy.
+- Web application security testing using OWASP ZAP.
+- Prometheus metrics collection.
+- Grafana monitoring dashboards.
+- Automated platform health validation after deployment.
+- Infrastructure validation before every deployment.
+- Automated IIS deployment.
+- Automated application packaging.
+- Secure secret management.
+- End-to-end deployment automation.
+
+# Repository Structure
+
+The repository is organized to separate infrastructure, configuration management, application source code, automation scripts, and documentation into clearly defined directories. This makes the project easier to maintain, extend, and troubleshoot while following common enterprise DevOps practices.
+
+```
+ct-azappdelivery/
+│
+├── application/                # .NET Inventory Tracker application
+│
+├── ansible/                    # Windows server configuration and deployment
 │   ├── inventory/
 │   ├── playbooks/
-│   ├── roles/
-│   └── group_vars/
+│   ├── group_vars/
+│   └── roles/
 │
-├── application/
-│   └── CTInventoryPortal/
+├── terraform/                  # Azure Infrastructure as Code
+│
+├── jenkins/                    # Pipeline helper scripts
 │
 ├── docs/
 │   ├── architecture/
 │   └── screenshots/
 │
-├── jenkins/
-│   ├── ansible-validate.sh
-│   ├── build-application.sh
-│   ├── deploy-application.sh
-│   ├── package-application.sh
-│   ├── platform-health.sh
-│   ├── sonarqube-scan.sh
-│   ├── terraform-validate.sh
-│   └── trivy-scan.sh
+├── scripts/                    # Supporting automation scripts
 │
-├── reports/
-├── scripts/
-├── security-reports/
+├── Jenkinsfile                 # Jenkins Multi-Branch Pipeline
 │
-├── terraform/
-│   ├── application-gateway.tf
-│   ├── autoscaling.tf
-│   ├── key-vault.tf
-│   ├── management-vm.tf
-│   ├── monitoring.tf
-│   ├── network-security.tf
-│   ├── network.tf
-│   ├── provider.tf
-│   ├── resource-group.tf
-│   ├── sql.tf
-│   ├── storage.tf
-│   ├── terraform.tfvars.example
-│   ├── variables.tf
-│   ├── vmss-extension.tf
-│   ├── vmss.tf
-│   └── vpn-gateway.tf
-│
-├── Jenkinsfile
 ├── ansible.cfg
+│
 └── README.md
 ```
 
 ---
 
-## CI/CD Pipeline
+# CI/CD Pipeline
 
-The project uses a Jenkins Multibranch Pipeline that discovers and builds the `dev` and `main` branches independently.
+A Jenkins Multi-Branch Pipeline automates the complete application delivery process from infrastructure validation to application deployment and platform health verification.
 
-### Development Branch Workflow
+The pipeline automatically detects whether changes were pushed to the **Development** or **Main** branch and executes the appropriate deployment workflow.
 
-The `dev` branch performs the complete validation, build, security, approval, deployment, and platform-health workflow.
+## Development Branch Workflow
 
-```text
-Developer Push
-      |
-      v
-GitHub dev Branch
-      |
-      v
-Jenkins Multibranch Pipeline
-      |
-      v
-Terraform Format Check
-      |
-      v
-Terraform Initialization
-      |
-      v
-Terraform Validation and Read-Only Plan
-      |
-      v
-Ansible Inventory Validation
-      |
-      v
-Ansible Syntax Validation
-      |
-      v
-Windows Connectivity Validation
-      |
-      v
-ASP.NET Core Release Build
-      |
-      v
-SonarQube Static Code Analysis
-      |
-      v
-SonarQube Quality Gate
-      |
-      v
-Trivy Security Scan
-      |
-      v
-Application Packaging
-      |
-      v
-Manual Deployment Approval
-      |
-      v
-Ansible Deployment to Both VMSS Instances
-      |
-      v
-IIS Security Header Configuration
-      |
-      v
-End-to-End Platform Health Validation
-```
+The development pipeline is designed to provide a safe environment for validating infrastructure and application changes before they are promoted to production.
 
-### Main Branch Workflow
+The workflow performs the following steps:
 
-The `main` branch represents production promotion. Tested changes are merged from `dev`, then built, packaged, deployed, and validated automatically.
-
-```text
-Merge dev into main
-      |
-      v
-GitHub main Branch
-      |
-      v
-Jenkins Multibranch Pipeline
-      |
-      v
-ASP.NET Core Release Build
-      |
-      v
-Application Packaging
-      |
-      v
-Automatic Ansible Deployment
-      |
-      v
-IIS Security Header Configuration
-      |
-      v
-Production Platform Health Validation
-      |
-      v
-Deployment Summary
-```
-
-### Branch Behavior
-
-| Pipeline Stage | `dev` | `main` |
-|---|---:|---:|
-| Checkout | Yes | Yes |
-| Branch Validation | Yes | Yes |
-| Terraform Format, Validate and Plan | Yes | No |
-| Ansible Validation | Yes | No |
-| ASP.NET Core Build | Yes | Yes |
-| SonarQube Analysis | Yes | No |
-| SonarQube Quality Gate | Yes | No |
-| Trivy Security Scan | Yes | No |
-| Application Packaging | Yes | Yes |
-| Manual Deployment Approval | Yes | No |
-| Application Deployment | After approval | Automatic |
-| Platform Health Validation | Full development validation | Production validation |
-| Build Artifact Archiving | Yes | Yes |
-
-### Automated Platform Validation
-
-| Component | Validation |
-|---|---|
-| Terraform | Formatting, initialization, validation, and plan completion |
-| Ansible | Inventory, syntax, variables, and connectivity |
-| .NET Application | Release build completed |
-| SonarQube | Analysis completed and Quality Gate passed |
-| Trivy | Security report generated |
-| Inventory Website | Public HTTPS returned HTTP 200 |
-| Application Health | `/health` returned HTTP 200 |
-| VMSS Application Servers | Both IIS application instances responded |
-| SQL Server Services | `MSSQLSERVER` running on both SQL nodes |
-| SQL Cluster and AG | Cluster and Availability Group health validated |
-| DNN Listener | Listener port `14330` reachable |
-| Prometheus | Health endpoint returned HTTP 200 |
-| Grafana | API health confirmed database status OK |
-| SonarQube Server | System status returned UP |
-| Docker Engine | Docker daemon reachable |
+1. Checkout the latest source code.
+2. Validate the active Git branch.
+3. Validate Terraform configuration.
+4. Generate a read-only Terraform execution plan.
+5. Validate the Ansible inventory and playbooks.
+6. Build the .NET application.
+7. Perform static code analysis using SonarQube.
+8. Execute Trivy vulnerability and secret scanning.
+9. Package the application.
+10. Wait for manual deployment approval.
+11. Deploy the application to the Virtual Machine Scale Set.
+12. Configure IIS and restart required services.
+13. Validate the deployed application.
+14. Verify the SQL Server Availability Group.
+15. Validate the DNN Listener.
+16. Verify Prometheus and Grafana.
+17. Generate a deployment health summary.
 
 ---
 
-## Deployment Guide
+## Production Branch Workflow
 
-### Prerequisites
+Once development testing has completed successfully, the validated code is merged into the **main** branch.
 
-- An Azure subscription
-- Azure CLI
-- Terraform
-- Ansible
-- Git
-- .NET 8 SDK
-- Docker
-- PowerShell
-- Jenkins
-- Access to the required Azure resource scopes
-- Windows and SQL Server administrative credentials
-- Ansible Vault password
+The production pipeline follows a similar workflow while removing the manual approval step to enable a fully automated production deployment.
 
-### 1. Clone the Repository
+The production pipeline performs:
 
-```bash
-git clone https://github.com/ctendongho/ct-azappdelivery.git
-cd ct-azappdelivery
-```
+- Source code checkout
+- Infrastructure validation
+- Terraform execution plan
+- Application build
+- SonarQube Quality Gate validation
+- Trivy security scan
+- Application deployment
+- IIS configuration
+- SQL Server validation
+- Platform health verification
+- Production deployment summary
 
-### 2. Create the Private Terraform Variables File
-
-The real `terraform.tfvars` file is excluded from Git because it contains sensitive values.
-
-```bash
-cd terraform
-cp terraform.tfvars.example terraform.tfvars
-```
-
-Edit the private file and replace demonstration values with the correct environment-specific configuration:
-
-```bash
-vi terraform.tfvars
-```
-
-Never commit `terraform.tfvars` to source control.
-
-### 3. Authenticate to Azure
-
-```bash
-az login
-az account show
-```
-
-Jenkins uses an Azure service principal stored in Jenkins credentials.
-
-### 4. Initialize Terraform
-
-```bash
-terraform init
-```
-
-### 5. Validate Terraform
-
-```bash
-terraform fmt -check -recursive
-terraform validate
-```
-
-### 6. Review the Plan
-
-```bash
-terraform plan
-```
-
-Review every planned addition, update, replacement, and deletion before proceeding.
-
-### 7. Provision the Infrastructure
-
-```bash
-terraform apply
-```
-
-### 8. Validate Ansible Connectivity
-
-Return to the repository root:
-
-```bash
-cd ..
-```
-
-Test all Windows hosts:
-
-```bash
-ansible windows \
-  -m ansible.windows.win_ping \
-  --ask-vault-pass
-```
-
-Test only application servers:
-
-```bash
-ansible app_servers \
-  -m ansible.windows.win_ping \
-  --ask-vault-pass
-```
-
-Test only SQL Server nodes:
-
-```bash
-ansible sql_servers \
-  -m ansible.windows.win_ping \
-  --ask-vault-pass
-```
-
-### 9. Validate Ansible Playbooks
-
-```bash
-ansible-playbook \
-  --syntax-check \
-  ansible/playbooks/deploy-application.yml
-```
-
-### 10. Build the Application
-
-```bash
-dotnet build \
-  application/CTInventoryPortal/CTInventoryPortal.csproj \
-  --configuration Release
-```
-
-### 11. Deploy with Ansible
-
-```bash
-ansible-playbook \
-  -i ansible/inventory/hosts.ini \
-  ansible/playbooks/deploy-application.yml \
-  --ask-vault-pass
-```
-
-### 12. Run the Development Pipeline
-
-```bash
-git checkout dev
-git add .
-git commit -m "Update application delivery platform"
-git push origin dev
-```
-
-Jenkins runs the development workflow and pauses before deployment for manual approval.
-
-### 13. Promote to Main
-
-After `dev` completes successfully:
-
-```bash
-git checkout main
-git pull origin main
-git merge --no-ff dev -m "Promote tested development changes to main"
-git push origin main
-```
-
-Jenkins automatically runs the production workflow.
+This approach ensures that production deployments remain repeatable, predictable, and fully automated.
 
 ---
 
-## Validation
+# Deployment Workflow
 
-### Validate the Public Website
+The platform combines Infrastructure as Code, Configuration Management, Continuous Integration, and Continuous Delivery into a single deployment workflow.
 
-```bash
-curl -I https://ctinventorytracker.com
+```
+Developer
+     │
+     ▼
+GitHub Repository
+     │
+     ▼
+Jenkins Multi-Branch Pipeline
+     │
+     ├────────────── Terraform Validation
+     │
+     ├────────────── Terraform Plan
+     │
+     ├────────────── Ansible Validation
+     │
+     ├────────────── Application Build
+     │
+     ├────────────── SonarQube Analysis
+     │
+     ├────────────── Trivy Security Scan
+     │
+     ├────────────── Package Application
+     │
+     ├────────────── Deploy Application
+     │
+     └────────────── Platform Validation
 ```
 
-Expected result:
-
-```text
-HTTP/2 200
-```
-
-### Validate the Application Health Endpoint
-
-```bash
-curl https://ctinventorytracker.com/health
-```
-
-Expected result:
-
-```text
-Healthy
-```
-
-### Validate Both VMSS Application Servers
-
-```bash
-ansible app_servers \
-  -m ansible.windows.win_ping \
-  --ask-vault-pass
-```
-
-Expected result from both application instances:
-
-```text
-ping: pong
-```
-
-### Validate IIS Application Health
-
-```bash
-ansible app_servers \
-  -m ansible.windows.win_uri \
-  -a "url=http://localhost/health method=GET status_code=200" \
-  --ask-vault-pass
-```
-
-### Validate SQL Server Services
-
-```bash
-ansible sql_servers \
-  -m ansible.windows.win_shell \
-  -a 'Get-Service MSSQLSERVER' \
-  --ask-vault-pass
-```
-
-### Validate the Distributed Network Name Listener
-
-```powershell
-Test-NetConnection `
-  CTInventoryListener.ad.ctinventorytracker.com `
-  -Port 14330
-```
-
-### Validate Prometheus
-
-```bash
-curl http://localhost:9090/-/healthy
-```
-
-### Validate Grafana
-
-```bash
-curl http://localhost:3000/api/health
-```
-
-### Validate SonarQube
-
-```bash
-curl http://localhost:9000/api/system/status
-```
-
-### Validate Docker
-
-```bash
-docker info
-```
-
-### Validate Terraform
-
-```bash
-cd terraform
-terraform validate
-```
-
-### Validate Ansible Syntax
-
-```bash
-ansible-playbook \
-  --syntax-check \
-  ansible/playbooks/deploy-application.yml
-```
-
-### Run a Trivy Scan
-
-```bash
-cd ~/ct-azappdelivery
-
-trivy fs \
-  --scanners vuln,secret,misconfig \
-  --severity LOW,MEDIUM,HIGH,CRITICAL \
-  application/
-```
-
-### Run an OWASP ZAP Baseline Scan
-
-```bash
-cd ~/ct-azappdelivery
-mkdir -p reports
-
-docker run --rm \
-  -v "$(pwd)/reports:/zap/wrk:rw" \
-  ghcr.io/zaproxy/zaproxy:stable \
-  zap-baseline.py \
-  -t https://ctinventorytracker.com/ \
-  -m 5 \
-  -r owasp-zap-report.html \
-  -J owasp-zap-report.json \
-  -x owasp-zap-report.xml
-```
+Every deployment follows exactly the same sequence, ensuring that infrastructure, application code, and server configuration remain synchronized.
 
 ---
 
-## Platform Screenshots
+# Infrastructure Provisioning
 
-### Jenkins Multibranch Pipeline
+Terraform provisions every Azure resource required by the platform, including networking, compute, storage, security, and supporting services.
 
-The Jenkins multibranch project discovers the `dev` and `main` branches and maintains an independent build history for each workflow. The development branch performs complete validation and requires deployment approval, while the main branch performs automatic production deployment.
+Resources provisioned include:
 
-![Jenkins Multibranch Pipeline](docs/screenshots/Jenkins-Multi-Branch-Pipeline1.png)
+- Resource Group
+- Virtual Network
+- Public Subnets
+- Application Subnets
+- Database Subnets
+- Network Security Groups
+- Azure Application Gateway
+- Virtual Machine Scale Set
+- Domain Controller
+- SQL Server Virtual Machines
+- Azure Key Vault
+- Managed Identity
+- Azure Storage
+- Monitoring resources
 
----
-
-### Jenkins Main Pipeline Scan Results
-
-The main-branch pipeline builds and packages the application, deploys it to both IIS instances, and performs production health checks. The final summary confirms the health of the application, VMSS instances, SQL Server services, SQL Cluster, Availability Group, DNN listener, Prometheus, Grafana, SonarQube, and Docker.
-
-![Jenkins Main Pipeline Scan Results](docs/screenshots/Jenkins-Multi-Branch-Pipeline2.png)
-
----
-
-### Inventory Tracker Web Portal
-
-The Inventory Tracker is an ASP.NET Core application hosted on two Windows IIS instances in `ct-azappvmss`. Azure Application Gateway provides secure public access and routes traffic only to healthy backends.
-
-![Inventory Tracker Web Portal](docs/screenshots/Inventory-Tracker-application-web-portal.png)
-
----
-
-### SQL Server Always On Dashboard
-
-The SQL Server dashboard shows the `CTInventoryAG` Availability Group, including the current primary and secondary replicas. The query output displays the records stored in the `dbo.InventoryItems` table, confirming application data availability through the high-availability database layer.
-
-![SQL Server Always On Dashboard](docs/screenshots/SQL-Server-Dashboard.png)
+Using Infrastructure as Code makes every deployment repeatable and eliminates manual configuration through the Azure Portal.
 
 ---
 
-### SonarQube Static Code Analysis
+# Configuration Management
 
-SonarQube analyzes the ASP.NET Core application during the development pipeline. The dashboard confirms a passing Quality Gate with no new bugs, vulnerabilities, or code smells.
+Once infrastructure has been provisioned, Ansible automatically configures the Windows servers.
 
-![SonarQube Dashboard](docs/screenshots/SonarQube-Dashboard.png)
+Playbooks perform tasks such as:
 
----
+- Active Directory installation
+- Domain configuration
+- SQL Server configuration
+- Always On Availability Group setup
+- IIS installation
+- Inventory Tracker deployment
+- Security header configuration
+- Application health verification
 
-### Trivy Security Scan
-
-Trivy scans supported application dependencies, files, secrets, and configuration content. The security scan provides vulnerability counts by severity and confirms whether Critical or High-risk findings require remediation.
-
-![Trivy Security Scan](docs/screenshots/Trivy-Security-Scan.png)
-
----
-
-### OWASP ZAP Security Scan
-
-OWASP ZAP performs a baseline dynamic security assessment against the public application endpoint. The captured report summarizes passed checks, warnings, and the absence of Critical or High-risk findings.
-
-![OWASP ZAP Security Scan](docs/screenshots/OWASP-ZAP-scan.png)
+This ensures that every server is configured consistently across environments.
 
 ---
 
-### Grafana and Prometheus Monitoring
+# Security Validation
 
-Prometheus collects platform metrics, and Grafana displays them through operational dashboards. The dashboard provides visibility into service availability, infrastructure utilization, and application health.
+Security is integrated directly into the deployment pipeline rather than being treated as a separate activity after deployment.
 
-![Grafana Dashboard](docs/screenshots/Grafana-dashboard.png)
+The platform performs multiple automated security checks including:
 
----
+### SonarQube
 
-### Azure Application Gateway
+Static code analysis verifies:
 
-Azure Application Gateway provides public HTTPS access, Layer 7 routing, TLS integration, backend health probes, and traffic distribution across the two VMSS application instances.
+- Code Quality
+- Maintainability
+- Bugs
+- Vulnerabilities
+- Code Smells
 
-![Azure Application Gateway](docs/screenshots/Application-gateway.png)
-
----
-
-### Azure Key Vault
-
-Azure Key Vault stores certificates, credentials, connection strings, and application secrets. Access is controlled through Azure RBAC and managed identity integration.
-
-![Azure Key Vault](docs/screenshots/Azure-key-vaults.png)
+The pipeline continues only after the Quality Gate passes successfully.
 
 ---
 
-## Challenges Encountered
+### Trivy
 
-### Protecting Terraform Secrets
+Trivy scans the application source code for:
 
-**Challenge:** Terraform required administrator passwords, certificates, public IP restrictions, and other environment-specific values that could not be committed to GitHub.
+- Known vulnerabilities
+- Exposed secrets
+- Dependency issues
+- Configuration weaknesses
 
-**Resolution:** The real `terraform.tfvars` file was excluded using `.gitignore`. A safe `terraform.tfvars.example` file was committed to demonstrate the expected structure. Jenkins credentials and Ansible Vault were used for pipeline and deployment secrets.
+This helps identify potential security issues before deployment.
 
-### Azure Service Principal Authentication
+---
 
-**Challenge:** Jenkins initially could not authenticate Terraform successfully because of incorrect service-principal credential values.
+### OWASP ZAP
 
-**Resolution:** The Azure client ID, client secret value, tenant ID, and subscription ID were stored as separate Jenkins credentials and injected into the Terraform stage using the standard `ARM_*` environment variables.
+After deployment, OWASP ZAP performs an automated baseline scan against the deployed Inventory Tracker application.
 
-### Azure RBAC Scope
+The scan validates the application against common web security risks including:
 
-**Challenge:** The Jenkins service principal could manage the main application resource group but could not read the peered management VNet and older network resources.
+- Security headers
+- Cross-site scripting indicators
+- Vulnerable JavaScript libraries
+- Session management
+- Cache configuration
+- Information disclosure
 
-**Resolution:** The appropriate Reader and Contributor roles were granted at the minimum required resource-group scopes.
+The generated reports were intentionally excluded from source control to keep the repository lightweight. Instead, the project documentation includes screenshots demonstrating successful security validation.
 
-### Terraform State and Configuration Drift
+---
 
-**Challenge:** Some existing resources had historical names and resource-group references that differed from the current Terraform configuration.
+# Platform Validation
 
-**Resolution:** Terraform plans were reviewed carefully, state was preserved, and destructive changes were avoided until the configuration and state relationships were understood.
+One of the primary goals of the project was to automatically verify that the environment is healthy after every deployment.
+
+Rather than assuming the deployment succeeded because no errors occurred, Jenkins performs a series of validation checks before reporting success.
+
+The validation process confirms:
+
+- Application deployment completed successfully.
+- IIS is serving the Inventory Tracker application.
+- The `/health` endpoint returns HTTP 200.
+- Both Virtual Machine Scale Set instances are online.
+- SQL Server services are running.
+- SQL Server Always On Availability Group is healthy.
+- The DNN Listener is reachable.
+- Prometheus is collecting metrics.
+- Grafana dashboards are available.
+- SonarQube is operational.
+- Docker services are available.
+- Required IIS security headers are present.
+
+Only after every validation succeeds does Jenkins report the deployment as successful.
+
+---
+
+# Deployment Summary
+
+Each pipeline execution concludes with a summarized health report showing the operational status of every major platform component.
+
+The summary provides a quick view of the deployment outcome, making it easy to identify issues without manually reviewing hundreds of lines of console output.
+
+This final validation stage provides confidence that the platform is functioning correctly and is ready to receive production traffic.
+
+# Platform Demonstration
+
+The following screenshots demonstrate the completed platform after a successful deployment. Together they highlight the CI/CD workflow, application deployment, database high availability, monitoring, security validation, and core Azure services that make up the solution.
+
+---
+
+# Jenkins Multi-Branch Pipeline
+
+The Jenkins Multi-Branch Pipeline automatically discovers the **dev** and **main** branches from GitHub and maintains an independent pipeline for each branch. This approach allows development changes to be validated independently before being promoted to production.
+
+<p align="center">
+<img src="docs/screenshots/Jenkins-Multi-Branch-Pipeline1.png" width="100%">
+</p>
+
+---
+
+# Jenkins Pipeline Execution
+
+The production pipeline validates infrastructure, builds the application, performs static code analysis, executes security scans, deploys the application, and performs automated health verification before reporting a successful deployment.
+
+The final platform summary confirms the health of every major platform component, providing confidence that the deployment completed successfully.
+
+<p align="center">
+<img src="docs/screenshots/Jenkins-Multi-Branch-Pipeline2.png" width="100%">
+</p>
+
+---
+
+# Demo
+
+The Inventory Tracker application is deployed automatically to a Windows Virtual Machine Scale Set running IIS. Azure Application Gateway securely publishes the application over HTTPS, providing users with a single public entry point while distributing traffic across multiple application servers.
+
+The application demonstrates a typical enterprise inventory management system where users can create, update, edit, and manage inventory records stored within SQL Server.
+
+<p align="center">
+<img src="docs/screenshots/Inventory-Tracker-application-web-portal.png" width="100%">
+</p>
+
+---
+
+# SQL Server Always On Availability Groups
+
+SQL Server Always On Availability Groups provide high availability for the Inventory Tracker database.
+
+The primary replica processes all read and write operations while continuously synchronizing changes to the secondary replica. If the primary server becomes unavailable, the Availability Group can fail over to the secondary replica, allowing the application to continue operating with minimal interruption.
+
+The screenshot below shows the Availability Group operating normally with the InventoryItems table queried from the active primary replica.
+
+<p align="center">
+<img src="docs/screenshots/SQL-Server-Dashboard.png" width="100%">
+</p>
+
+---
+
+# SonarQube Static Code Analysis
+
+Before deployment, Jenkins performs static code analysis using SonarQube to evaluate the quality, reliability, and maintainability of the application source code.
+
+The project successfully passes the configured Quality Gate with:
+
+- No New Bugs
+- No New Vulnerabilities
+- No New Code Smells
+- Passing Quality Gate
+
+This ensures that only code meeting the defined quality standards progresses through the deployment pipeline.
+
+<p align="center">
+<img src="docs/screenshots/SonarQube-Dashboard.png" width="100%">
+</p>
+
+---
+
+# Trivy Security Scan
+
+Trivy is integrated directly into the Jenkins pipeline to perform automated vulnerability and secret scanning before deployment.
+
+The scan evaluates the application source code for:
+
+- Known vulnerabilities
+- Dependency vulnerabilities
+- Secret exposure
+- Configuration weaknesses
+
+Integrating Trivy into the CI/CD process helps identify potential security issues early in the software delivery lifecycle.
+
+<p align="center">
+<img src="docs/screenshots/Trivy-Security-Scan.png" width="100%">
+</p>
+
+---
+
+# OWASP ZAP Security Scan
+
+After deployment, OWASP ZAP performs an automated baseline scan against the running Inventory Tracker application.
+
+Unlike static analysis tools, OWASP ZAP evaluates the live application from an attacker's perspective by inspecting HTTP responses, application headers, session handling, and common web application security risks.
+
+The completed scan reported:
+
+- No Critical Findings
+- No High Severity Vulnerabilities
+- Informational security recommendations only
+
+This additional layer of testing helps verify that the deployed application follows recommended web application security practices.
+
+<p align="center">
+<img src="docs/screenshots/OWASP-ZAP-scan.png" width="100%">
+</p>
+
+---
+
+# Grafana Monitoring Dashboard
+
+Prometheus continuously collects infrastructure and application metrics from the platform, while Grafana visualizes those metrics through interactive dashboards.
+
+The monitoring solution provides visibility into platform performance, helping administrators quickly identify resource utilization trends, application behavior, and infrastructure health.
+
+Typical metrics include:
+
+- CPU Utilization
+- Memory Utilization
+- Disk Usage
+- Network Activity
+- IIS Availability
+- Application Health
+
+<p align="center">
+<img src="docs/screenshots/Grafana-dashboard.png" width="100%">
+</p>
+
+---
+
+# Azure Application Gateway
+
+Azure Application Gateway serves as the secure entry point into the platform.
+
+Its responsibilities include:
+
+- HTTPS termination
+- Layer 7 load balancing
+- Intelligent request routing
+- SSL certificate management
+- Secure client connections
+
+By routing incoming requests to the Virtual Machine Scale Set, Application Gateway improves both availability and scalability while simplifying external access to the application.
+
+<p align="center">
+<img src="docs/screenshots/Application-gateway.png" width="100%">
+</p>
+
+---
+
+# Azure Key Vault
+
+Azure Key Vault provides centralized and secure storage for sensitive configuration such as credentials, secrets, and certificates.
+
+Rather than embedding sensitive values within Terraform, Ansible, or the application itself, secrets are securely managed through Key Vault and accessed using Azure Managed Identity whenever possible.
+
+This approach improves security while simplifying credential management across the deployment platform.
+
+<p align="center">
+<img src="docs/screenshots/Azure-key-vaults.png" width="100%">
+</p>
+
+# Design Decisions
+
+Every major technology in this project was selected to solve a specific problem while balancing availability, security, scalability, and operational simplicity. The following decisions reflect the architectural choices made during the design and implementation of the platform.
+
+---
+
+## Why Terraform?
+
+Terraform was selected to provision Azure infrastructure because it enables Infrastructure as Code (IaC), allowing the entire environment to be recreated consistently from source-controlled configuration files.
+
+Using Terraform provides several advantages:
+
+- Repeatable infrastructure deployments
+- Version-controlled infrastructure changes
+- Reduced manual configuration
+- Easier disaster recovery
+- Consistent environments across deployments
+
+---
+
+## Why Ansible?
+
+Terraform provisions infrastructure, but it does not configure operating systems or applications.
+
+Ansible was chosen to automate Windows Server configuration, Active Directory setup, SQL Server configuration, IIS installation, application deployment, and post-deployment validation.
+
+Separating infrastructure provisioning from configuration management follows common enterprise DevOps practices while making each layer easier to maintain.
+
+---
+
+## Why Jenkins Multi-Branch Pipeline?
+
+A Multi-Branch Pipeline allows Jenkins to automatically discover Git branches and execute different deployment workflows depending on the target branch.
+
+For this project:
+
+- The **dev** branch provides a controlled environment for validating infrastructure and application changes before deployment.
+- The **main** branch represents the production deployment pipeline.
+
+This approach supports safer software delivery while maintaining a clear promotion path from development to production.
+
+---
+
+## Why Azure Application Gateway?
+
+Azure Application Gateway was selected because it provides Layer 7 (HTTP/HTTPS) load balancing with additional application-aware capabilities.
+
+Key benefits include:
+
+- HTTPS termination
+- SSL certificate management
+- Intelligent request routing
+- Health probes
+- Secure external application access
+
+Compared to a traditional Layer 4 load balancer, Application Gateway provides better visibility into HTTP traffic and offers more advanced routing capabilities.
+
+---
+
+## Why Virtual Machine Scale Sets?
+
+Virtual Machine Scale Sets provide a scalable and highly available application layer by allowing multiple identical application servers to operate behind a single endpoint.
+
+This improves:
+
+- Fault tolerance
+- High availability
+- Scalability
+- Simplified application deployment
+
+If one application server becomes unavailable, requests can continue to be served by the remaining healthy instances.
+
+---
+
+## Why SQL Server Always On Availability Groups?
+
+The Inventory Tracker application depends heavily on the availability of its database.
+
+SQL Server Always On Availability Groups were implemented to provide database high availability across multiple availability zones.
+
+Benefits include:
+
+- Automatic or manual failover
+- Database redundancy
+- Minimal downtime
+- Continuous synchronization
+- Improved business continuity
+
+The project uses a Distributed Network Name (DNN) Listener, which simplifies client connectivity while supporting modern Windows Server Failover Cluster deployments in Azure.
+
+---
+
+## Why Azure Key Vault?
+
+Sensitive information should never be stored directly within source code or deployment scripts.
+
+Azure Key Vault provides centralized secret management for credentials, certificates, and sensitive configuration while supporting secure access through Azure Managed Identity.
+
+This reduces operational risk and improves the overall security posture of the platform.
+
+---
+
+## Why SonarQube, Trivy, and OWASP ZAP Together?
+
+Each tool validates a different aspect of application security.
+
+| Tool | Purpose |
+|-------|----------|
+| SonarQube | Static code quality and security analysis |
+| Trivy | Vulnerability, dependency, and secret scanning |
+| OWASP ZAP | Dynamic web application security testing |
+
+Using all three tools provides broader coverage than relying on a single security scanner.
+
+This layered approach helps identify issues throughout the software delivery lifecycle, from source code to the running application.
+
+---
+
+# Challenges Encountered
+
+Building an enterprise application delivery platform required overcoming several technical challenges across infrastructure, networking, automation, and database high availability.
+
+### Jenkins Multi-Branch Pipeline
+
+Designing a pipeline that supported separate development and production workflows required careful branch validation, conditional execution, and deployment approvals.
+
+This was resolved by implementing branch-specific pipeline logic with manual approvals for development deployments and fully automated production deployments.
+
+---
+
+### SQL Server Always On Availability Groups
+
+Configuring SQL Server Always On Availability Groups across multiple Azure virtual machines required careful coordination between Windows Failover Clustering, Active Directory, SQL Server configuration, and networking.
+
+Extensive validation and testing ensured successful synchronization and reliable database availability.
+
+---
 
 ### Windows Automation with Ansible
 
-**Challenge:** Windows automation required WinRM, domain credentials, Windows-specific modules, firewall rules, and Ansible Vault integration.
+Managing Windows infrastructure through Ansible presented additional complexity compared to Linux environments.
 
-**Resolution:** Hosts were grouped into domain-controller, SQL Server, and application-server inventories. WinRM connectivity and authentication were validated before running configuration and deployment playbooks.
-
-### VM Scale Set Connectivity
-
-**Challenge:** One VMSS instance temporarily timed out during Ansible validation.
-
-**Resolution:** Azure CLI was used to confirm both scale-set instances, private IP addresses, power states, and WinRM connectivity. Ansible `win_ping` was rerun successfully against both instances.
-
-### SQL Server Always On Configuration
-
-**Challenge:** Windows Server Failover Clustering, SQL Server Always On, synchronization, database membership, and DNN listener connectivity had to work together.
-
-**Resolution:** The SQL Server nodes were validated through service checks, cluster validation playbooks, Availability Group checks, and DNN listener connectivity tests.
-
-### SonarQube Token Injection
-
-**Challenge:** The SonarQube scan initially failed because the token environment variable was overwritten or unavailable inside the scanner script.
-
-**Resolution:** The Jenkins credential was injected using a dedicated `SONAR_TOKEN` variable, avoiding the variable-name collision.
-
-### Jenkins Shell Compatibility
-
-**Challenge:** The main production-health stage failed because Jenkins executed a multiline command using `/bin/sh`, which did not support `set -o pipefail`.
-
-**Resolution:** The shell block was explicitly configured to run with Bash.
-
-### Branch-Specific Pipeline Behavior
-
-**Challenge:** Development required complete validation and manual approval, while main required automatic deployment without repeating all development scans.
-
-**Resolution:** Jenkins `when` conditions were used to define separate `dev` and `main` workflows inside a single Jenkinsfile.
-
-### Application Gateway Health Probes
-
-**Challenge:** Azure Application Gateway needed a reliable health check before routing traffic to an IIS instance.
-
-**Resolution:** A dedicated `/health` endpoint was implemented and validated locally and publicly.
-
-### Web Security Hardening
-
-**Challenge:** OWASP ZAP identified warnings related to JavaScript libraries, cache directives, CSP configuration, server headers, and cross-origin policy headers.
-
-**Resolution:** Required IIS security headers were added through Ansible. Remaining warnings were documented as future hardening tasks.
+Reliable WinRM communication, inventory management, and PowerShell-based automation were implemented to provide consistent server configuration and application deployment.
 
 ---
 
-## Lessons Learned
+### Infrastructure Validation
 
-- High availability must be implemented across networking, compute, application, and database layers.
-- SQL Server Always On protects the database layer, but the complete application also requires redundant web servers, healthy routing, monitoring, and automated recovery.
-- Sensitive Terraform values must remain outside source control.
-- Jenkins credentials and Ansible Vault provide safer automation than embedding passwords in code.
-- Infrastructure validation should happen before application deployment.
-- Development and production branches should have different controls and deployment behavior.
-- A dedicated health endpoint simplifies Application Gateway routing, automated validation, and troubleshooting.
-- Static analysis, dependency scanning, secret scanning, and dynamic web testing protect different parts of the delivery lifecycle.
-- Post-deployment health checks should validate the complete platform rather than only the application build.
-- Windows automation requires careful WinRM, firewall, DNS, domain, and credential configuration.
-- Consistent Azure naming conventions make a large environment easier to understand and operate.
-- Terraform state must be treated as a critical asset.
-- RBAC permissions should be granted at the minimum scope required.
-- A clean README and accurate architecture diagram are important parts of presenting a technical project professionally.
+Ensuring Terraform validation and planning could execute within Jenkins without exposing sensitive credentials required separating production configuration from repository documentation.
+
+A reusable example configuration was created while sensitive values remained excluded from source control.
 
 ---
 
-## Future Enhancements
+### Security Integration
 
-- Replace direct jump-box access with Azure Bastion.
-- Add Azure Firewall for centralized network inspection.
-- Add Web Application Firewall protection to Azure Application Gateway.
-- Add Azure Front Door for global entry, edge security, and regional expansion.
-- Add private endpoints for Azure Key Vault, storage, and supported platform services.
-- Store Terraform state remotely in an Azure Storage Account with locking and versioning.
-- Rotate VM and SQL Server credentials through Azure Key Vault.
-- Add Microsoft Defender for Cloud.
-- Add Azure Policy for governance and configuration compliance.
-- Add Azure Backup for SQL Server and critical virtual machines.
-- Configure automated certificate rotation.
-- Add centralized logging with Azure Log Analytics.
-- Add Azure Monitor alert rules for Application Gateway, VMSS, SQL AG, and application failures.
-- Generate the Ansible inventory dynamically from Azure.
-- Add controlled automated SQL Server failover testing in a non-production pipeline.
-- Add load, stress, and performance testing.
-- Add automated release tags and GitHub releases.
-- Add rolling, canary, or blue-green deployment options.
-- Move Jenkins, SonarQube, Prometheus, and Grafana to a dedicated management subnet or separate management VNet.
-- Add a separate production environment with isolated state, credentials, and approval policies.
+Integrating SonarQube, Trivy, and OWASP ZAP into a single CI/CD workflow required coordinating multiple validation stages while ensuring deployments continued only after successful security verification.
+
+This resulted in a deployment pipeline that validates code quality, infrastructure security, and web application security before reporting success.
 
 ---
 
-## License
+# Lessons Learned
 
-This project is intended for learning, demonstration, and portfolio purposes.
+Developing this platform provided valuable practical experience across multiple areas of cloud engineering and DevOps.
+
+Some of the most significant lessons learned include:
+
+- Infrastructure as Code dramatically improves deployment consistency and repeatability.
+- Configuration management is equally important as infrastructure provisioning.
+- CI/CD pipelines should include validation, security scanning, and health verification—not just application deployment.
+- Monitoring should be designed into a platform from the beginning rather than added later.
+- High availability involves much more than deploying multiple servers; networking, clustering, storage, and application design all play important roles.
+- Security is most effective when integrated throughout the software delivery lifecycle instead of being treated as a separate activity.
+
+Perhaps the most important lesson was understanding how multiple technologies work together to deliver a single business solution rather than viewing each technology independently.
+
+---
+
+# Future Improvements
+
+Although the platform already demonstrates enterprise application delivery, several enhancements could be implemented in future iterations.
+
+Potential improvements include:
+
+- Azure Monitor integration for centralized logging.
+- Azure Front Door for global traffic distribution.
+- Azure Web Application Firewall (WAF) policies.
+- Azure Backup and Azure Site Recovery.
+- Automatic SQL Server failover validation within the Jenkins pipeline.
+- Blue/Green deployment strategy.
+- Canary deployments.
+- Kubernetes-based application hosting using Azure Kubernetes Service (AKS).
+- GitHub Actions deployment workflow.
+- Automated performance testing during CI/CD.
+- Infrastructure compliance scanning with Microsoft Defender for Cloud.
+
+---
+
+# Conclusion
+
+This project demonstrates the design and implementation of a modern enterprise application delivery platform on Microsoft Azure.
+
+By combining Infrastructure as Code, Configuration Management, Continuous Integration, Continuous Delivery, High Availability, Monitoring, and Security into a single automated workflow, the platform reflects many of the technologies and practices used in real-world enterprise environments.
+
+Beyond the technologies themselves, the project reinforced the importance of automation, repeatability, security, operational visibility, and thoughtful architectural design. It also provided valuable hands-on experience integrating multiple tools into a cohesive solution capable of supporting reliable and scalable application delivery.
+
+---
+
+# Author
+
+**Charles Tendongho**
+
+Cloud Engineer | SQL Server DBA | DevOps Engineer
+
+GitHub: https://github.com/ctendongho
+
+LinkedIn: *(Add your LinkedIn profile here)*
+
+---
+
+⭐ If you found this project helpful or interesting, feel free to fork the repository, open an issue, or leave a star.
