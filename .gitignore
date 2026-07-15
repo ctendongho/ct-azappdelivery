@@ -56,3 +56,11 @@ __pycache__/
 # SonarQube generated files
 application/CTInventoryPortal/.sonarqube/
 reports/
+
+# Generated security reports
+reports/
+security-reports/
+*.html
+*.xml
+*.json
+*.sarif
