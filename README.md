@@ -593,7 +593,7 @@ Potential improvements include:
 
 **Charles Tendongho**
 
-SQL Server DBA | Cloud Engineer | DevOps Engineer
+Database Engineer | Cloud Engineer | DevOps Engineer
 
 GitHub: https://github.com/ctendongho
 
