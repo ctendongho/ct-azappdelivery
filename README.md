@@ -132,40 +132,34 @@ Monitoring and security are integrated throughout the deployment lifecycle using
 
 ---
 
-# Repository Structure
+## Repository Structure
 
+```text
 ct-azappdelivery/
-│
-├── application/                # .NET Inventory Tracker application
-│
-├── ansible/                    # Windows server configuration and deployment
-│   ├── inventory/
-│   ├── playbooks/
-│   ├── group_vars/
-│   └── roles/
-│
-├── terraform/                  # Azure Infrastructure as Code
-│
-├── jenkins/                    # Pipeline helper scripts
-│
+├── application/
+│   └── CTInventoryPortal/       
+├── ansible/
+│   ├── inventory/                
+│   ├── playbooks/                
+│   ├── group_vars/               
+│   └── roles/                    
+├── terraform/                    
+├── jenkins/                     
+├── scripts/                     
 ├── docs/
-│   ├── architecture/
-│   └── screenshots/
-│
-├── scripts/                    # Supporting automation scripts
-│
-├── Jenkinsfile                 # Jenkins Multi-Branch Pipeline
-│
-├── ansible.cfg
-|
-├── LICENSE
-│
+│   ├── architecture/             
+│   └── screenshots/              
+├── Jenkinsfile                   
+├── ansible.cfg                   
+├── .gitignore
 └── README.md
+```
 
 ---
 
-# CI/CD Pipeline
+## CI/CD Pipeline
 
+```text
 Developer
      │
      ▼
@@ -190,8 +184,7 @@ Ansible Inventory and Playbook Validation
 .NET Application Build
      │
      ▼
-SonarQube Static Code Analysis
-and Quality Gate
+SonarQube Scan and Quality Gate
 (dev only)
      │
      ▼
@@ -209,14 +202,10 @@ Manual Deployment Approval
 Ansible Deployment
      │
      ▼
-Azure VM Scale Set
-ct-azappvmss
+Azure VM Scale Set and IIS
      │
      ▼
-IIS Configuration and Security Headers
-     │
-     ▼
-OWASP ZAP Web Security Scan
+OWASP ZAP Security Scan
 (post-deployment)
      │
      ▼
@@ -226,8 +215,7 @@ Platform Health Checks
 Deployment Summary
 ```
 
-The `dev` branch performs the complete validation and security workflow and requires manual approval before deployment.
-The main branch deploys automatically after all pipeline stages complete successfully.
+The `dev` branch runs the complete validation and security workflow and requires manual approval before deployment. The `main` branch automatically builds, packages, deploys, and validates changes that have already been tested in development.
 
 ---
 
