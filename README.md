@@ -407,9 +407,29 @@ OVERALL PLATFORM STATUS: HEALTHY
 ```
 ---
 
-## Platform Screenshots
+# Platform Screenshots
 
-# Inventory Tracker application web portal
+## Jenkins Multi-Branch Pipeline
+
+Automated CI/CD pipeline supporting both development and production deployments.
+
+<p align="center">
+<img src="docs/screenshots/jenkins-multibranch-pipeline.png" width="100%">
+</p>
+
+---
+
+## Jenkins Multi-Branch Pipeline (deployment validation summary)
+
+Jenkins CI/CD pipeline deployment validation summary
+
+<p align="center">
+<img src="docs/screenshots/jenkins-deployment-sum.png" width="100%">
+</p>
+
+---
+
+## Inventory Tracker application web portal
 
 The application demonstrates a typical enterprise inventory management system where users can create, update, edit, and manage inventory records stored within a SQL Server database.
 
@@ -419,7 +439,7 @@ The application demonstrates a typical enterprise inventory management system wh
 
 ---
 
-# SQL Server Always On Availability Groups
+## SQL Server Always On Availability Groups
 
 SQL Server Always On Availability Groups provide high availability for the Inventory Tracker database.
 
@@ -428,12 +448,12 @@ The primary replica processes all read and write operations while continuously s
 The screenshot below shows the Availability Group operating normally with the InventoryItems table queried from the active primary replica.
 
 <p align="center">
-<img src="docs/screenshots/SQL-Server-Dashboard.png" width="100%">
+<img src="docs/screenshots/SQL-Server-AG.png" width="100%">
 </p>
 
 ---
 
-# SonarQube Static Code Analysis
+## SonarQube Static Code Analysis
 
 Before deployment, Jenkins performs static code analysis using SonarQube to scan for bugs, security vulnerabilities, security hotspots, and code smells. This ensures that only code meeting the defined quality standards progresses through the deployment pipeline.
 
@@ -450,7 +470,7 @@ The project successfully passes the configured Quality Gate with:
 
 ---
 
-# Trivy Security Scan
+## Trivy Security Scan
 
 Trivy is integrated directly into the Jenkins pipeline to perform automated vulnerability and secret scanning to find known vulnerabilities, misconfigurations, and exposed secrets in code and infrastructure before deployment.
 
@@ -460,7 +480,7 @@ Trivy is integrated directly into the Jenkins pipeline to perform automated vuln
 
 ---
 
-# OWASP ZAP Security Scan
+## OWASP ZAP Security Scan
 
 After deployment, OWASP ZAP performs an automated baseline scan against the running Inventory Tracker application.
 
@@ -480,7 +500,7 @@ The completed scan reported:
 
 ---
 
-# Grafana Monitoring Dashboard
+## Grafana Monitoring Dashboard
 
 Prometheus continuously collects infrastructure and application metrics from the platform, while Grafana visualizes those metrics through interactive dashboards.
 
@@ -501,7 +521,7 @@ Typical metrics include:
 
 ---
 
-# Azure Application Gateway
+## Azure Application Gateway
 
 Application Gateway securely exposes the application through HTTPS. By routing incoming requests to the Virtual Machine Scale Set, Application Gateway also improves both availability and scalability while simplifying external access to the application.
 
@@ -521,7 +541,7 @@ Its responsibilities include:
 
 ---
 
-# Azure Key Vault
+## Azure Key Vault
 
 Azure Key Vault provides centralized and secure storage for sensitive configuration such as credentials, secrets, and certificates.
 
