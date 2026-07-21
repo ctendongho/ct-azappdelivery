@@ -68,13 +68,7 @@ The following diagram illustrates the complete Azure platform and how each servi
 
 The architecture is designed around security, scalability, automation, and high availability and fault tollerance.
 
-User traffic enters through Azure Application Gateway, which provides HTTPS termination and routes requests to the Windows Virtual Machine Scale Set hosting the Inventory Tracker application. The application communicates with SQL Server Always On Availability Groups deployed across two availability zones for database resilience.
-
-A dedicated management virtual machine hosts Jenkins, Terraform, Ansible, SonarQube, Prometheus, Grafana, Docker, and Azure CLI, providing a centralized administration and CI/CD environment.
-
-Azure Key Vault securely stores sensitive configuration while Managed Identity allows Azure resources to authenticate without embedding credentials within the application or deployment scripts.
-
-Monitoring and security are integrated throughout the deployment lifecycle using Prometheus, Grafana, SonarQube, Trivy, and OWASP ZAP.
+User traffic enters through Azure Application Gateway, which provides HTTPS termination and routes requests to the Windows Virtual Machine Scale Set hosting the Inventory Tracker application. The application communicates with SQL Server Always On Availability Groups deployed across two availability zones for fault tollerance. Monitoring and security are integrated throughout the deployment lifecycle using Prometheus, Grafana, SonarQube, Trivy, and OWASP ZAP.
 
 ---
 
