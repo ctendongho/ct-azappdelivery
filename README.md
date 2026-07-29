@@ -593,7 +593,7 @@ Potential improvements include:
 
 **Charles Tendongho**
 
-Database Engineer | Cloud Engineer | DevOps Engineer
+Database Administrator | Database Developer | Database Engineer | Data Platform Engineer
 
 GitHub: https://github.com/ctendongho
 
